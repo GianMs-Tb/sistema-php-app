@@ -1,16 +1,33 @@
-# flutter_application_1
+# 🏢 Sistema Integral PH
 
-A new Flutter project.
+¡Bienvenido al repositorio oficial del **Sistema Integral PH**! 
 
-## Getting Started
+Esta es una aplicación móvil desarrollada en Flutter, diseñada para modernizar, agilizar y facilitar la gestión diaria de conjuntos residenciales y Propiedad Horizontal.
 
-This project is a starting point for a Flutter application.
+---
 
-A few resources to get you started if this is your first Flutter project:
+## ✨ Características Principales
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+* **🏠 Inicio Inteligente:** Dashboard con estado de cuenta, notificaciones importantes y accesos rápidos.
+* **🎾 Gestión de Reservas:** Interfaz rápida para apartar zonas comunes (piscina, salón social, etc.).
+* **📱 Pase VIP (Visitas):** Generador de Código QR temporal para el ingreso rápido y seguro de visitantes desde portería.
+* **📦 Paquetería y Comunicados:** Alertas en tiempo real sobre la llegada de envíos y noticias de la administración.
+* **🆘 Botón SOS:** Acceso rápido para emergencias dentro del conjunto con animaciones interactivas.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+---
+
+## 🛠️ Tecnologías Utilizadas
+
+* **Framework:** [Flutter](https://flutter.dev/)
+* **Lenguaje:** Dart
+* **Diseño UI:** Estilos modernos (Glassmorphism, animaciones implícitas).
+
+---
+
+## 🚀 Cómo ejecutar este proyecto localmente
+
+Si eres desarrollador y deseas probar este proyecto en tu máquina, sigue estos pasos:
+
+1. **Clona este repositorio:**
+   ```bash
+   git clone [https://github.com/GianMs-Tb/sistema-php-app.git](https://github.com/GianMs-Tb/sistema-php-app.git)
