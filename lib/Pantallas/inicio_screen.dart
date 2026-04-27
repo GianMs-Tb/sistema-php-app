@@ -1,7 +1,18 @@
 import 'package:flutter/material.dart';
+import '../Models/residente.dart';
 
 class InicioScreen extends StatelessWidget {
   const InicioScreen({super.key});
+
+  // Dato temporal: reemplazar por Provider/Bloc cuando conectemos Firebase
+  static final Residente _residente = Residente(
+    nombre: 'Santiago',
+    apartamento: 'Apto 502',
+    torre: 'Torre 1',
+    saldoPendiente: 150000,
+    fechaVencimiento: DateTime(2026, 4, 15),
+    notificacionesSinLeer: 2,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -95,25 +106,26 @@ class InicioScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Column(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Hola, Santiago', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-              SizedBox(height: 5),
-              Text('Apto 502 - Torre 1', style: TextStyle(color: Colors.white70, fontSize: 14)),
+              Text('Hola, ${_residente.nombre}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 5),
+              Text(_residente.unidadCompleta, style: const TextStyle(color: Colors.white70, fontSize: 14)),
             ],
           ),
           Stack(
             children: [
               const CircleAvatar(radius: 25, backgroundColor: Colors.white24, child: Icon(Icons.person, color: Colors.white, size: 30)),
-              Positioned(
-                right: 0, top: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
-                  child: const Text('2', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                ),
-              )
+              if (_residente.notificacionesSinLeer > 0)
+                Positioned(
+                  right: 0, top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
+                    child: Text('${_residente.notificacionesSinLeer}', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ),
+                )
             ],
           ),
         ],
@@ -140,9 +152,12 @@ class InicioScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 15),
-          const Text('\$ 150.000', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Color(0xFF1E293B))),
+          Text(_residente.saldoFormateado, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Color(0xFF1E293B))),
           const SizedBox(height: 5),
-          const Text('Vence el 15 de Abril', style: TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w500)),
+          Text(
+            'Vence el ${_residente.fechaVencimiento.day} de ${_nombreMes(_residente.fechaVencimiento.month)}',
+            style: const TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w500),
+          ),
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity, height: 45,
@@ -212,6 +227,11 @@ class InicioScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _nombreMes(int mes) {
+    const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    return meses[mes - 1];
   }
 
   void _mostrarVentanaQR(BuildContext context) {
