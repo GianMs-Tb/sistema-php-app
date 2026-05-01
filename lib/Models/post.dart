@@ -47,3 +47,4 @@ class Post {
           : (m['createdAt'] as dynamic).toDate(),
     );
   }
+}

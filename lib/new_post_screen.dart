@@ -1,10 +1,11 @@
 // lib/new_post_screen.dart
 import 'dart:typed_data';
-import 'package:app_feeds/services/firebase_post_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'services/image_base64.dart'; // XFile -> base64 (con compresión)
+// Rutas corregidas apuntando a tu propia carpeta Services (con S mayúscula)
+import 'Services/firebase_post_repository.dart';
+import 'Services/image_base64.dart'; 
 
 // Pantalla para crear un post guardando la imagen en base64 dentro de Firestore.
 // Pasa la identidad del usuario al construirla.
@@ -195,8 +196,8 @@ class _NewPostScreenState extends State<NewPostScreen> {
                     top: 8,
                     child: IconButton.filled(
                       style: IconButton.styleFrom(
-                        backgroundColor:
-                            theme.colorScheme.surface.withOpacity(0.85),
+                        // Corregido el aviso azul de Deprecation
+                        backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.85),
                       ),
                       onPressed: _submitting ? null : _removeImage,
                       icon: const Icon(Icons.close),
