@@ -23,7 +23,7 @@ class InicioScreen extends StatelessWidget {
             clipBehavior: Clip.none,
             alignment: Alignment.topCenter,
             children: [
-              _construirFondoHeader(),
+              _construirFondoHeader(context),
               Positioned(
                 top: 130,
                 child: _construirTarjetaSaldo(),
@@ -87,7 +87,7 @@ class InicioScreen extends StatelessWidget {
     );
   }
 
-  Widget _construirFondoHeader() {
+  Widget _construirFondoHeader(BuildContext context) {
     return Container(
       height: 220,
       padding: const EdgeInsets.only(top: 60, left: 20, right: 20),
@@ -114,20 +114,43 @@ class InicioScreen extends StatelessWidget {
               Text(_residente.unidadCompleta, style: const TextStyle(color: Colors.white70, fontSize: 14)),
             ],
           ),
-          Stack(
-            children: [
-              const CircleAvatar(radius: 25, backgroundColor: Colors.white24, child: Icon(Icons.person, color: Colors.white, size: 30)),
-              if (_residente.notificacionesSinLeer > 0)
-                Positioned(
-                  right: 0, top: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
-                    child: Text('${_residente.notificacionesSinLeer}', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                  ),
-                )
-            ],
+          GestureDetector(
+  onTap: () {
+    // Aquí es donde sucede la magia. Por ahora mostraremos un mensaje,
+    // pero luego podemos decirle que abra la pantalla de Perfil.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('¡Hiciste clic en el perfil!')),
+    );
+  },
+  child: Stack(
+    children: [
+      const CircleAvatar(
+        radius: 25, 
+        backgroundColor: Colors.white24, 
+        child: Icon(Icons.person, color: Colors.white, size: 30)
+      ),
+      if (_residente.notificacionesSinLeer > 0)
+        Positioned(
+          right: 0, top: 0,
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: const BoxDecoration(
+              color: Colors.redAccent, 
+              shape: BoxShape.circle
+            ),
+            child: Text(
+              '${_residente.notificacionesSinLeer}', 
+              style: const TextStyle(
+                color: Colors.white, 
+                fontSize: 10, 
+                fontWeight: FontWeight.bold
+              )
+            ),
           ),
+        )
+    ],
+  ),
+),
         ],
       ),
     );
