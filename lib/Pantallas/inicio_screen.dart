@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../Models/residente.dart';
+import 'admin_residentes_screen.dart';
 
 class InicioScreen extends StatelessWidget {
   const InicioScreen({super.key});
@@ -116,12 +117,11 @@ class InicioScreen extends StatelessWidget {
           ),
           GestureDetector(
   onTap: () {
-    // Aquí es donde sucede la magia. Por ahora mostraremos un mensaje,
-    // pero luego podemos decirle que abra la pantalla de Perfil.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('¡Hiciste clic en el perfil!')),
-    );
-  },
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => const AdminResidentesScreen()),
+  );
+},
   child: Stack(
     children: [
       const CircleAvatar(
