@@ -1,10 +1,18 @@
 // Importa Firebase Authentication para manejar usuarios y sesiones.
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+import '../Models/app_user.dart';
 
 // Servicio que encapsula toda la comunicacion con Firebase Authentication.
 class AuthService {
   // Crea una referencia privada a la instancia global de FirebaseAuth.
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  CollectionReference<Map<String, dynamic>> get _users =>
+      _firestore.collection('users');
 
   // Expone un stream que avisa cuando el usuario inicia o cierra sesion.
   Stream<User?> get authState => _auth.authStateChanges();
@@ -62,8 +70,33 @@ class AuthService {
     // Recarga el usuario para que el displayName quede disponible de inmediato.
     await credential.user?.reload();
 
+    final u = credential.user;
+    if (u != null) {
+      await _users.doc(u.uid).set(
+            AppUser(
+              uid: u.uid,
+              email: email.trim(),
+              role: UserRoles.residente,
+            ).toMap(),
+          );
+    }
+
     // Retorna la credencial por si la UI necesita consultar UID o email.
     return credential;
+  }
+
+  /// Crea el documento `users/{uid}` si no existe (usuarios antiguos u otros flujos).
+  Future<void> ensureUserDocumentIfMissing(User user) async {
+    final ref = _users.doc(user.uid);
+    final snap = await ref.get();
+    if (snap.exists) return;
+    await ref.set(
+      AppUser(
+        uid: user.uid,
+        email: user.email ?? '',
+        role: UserRoles.residente,
+      ).toMap(),
+    );
   }
 
   // Metodo para cerrar la sesion activa.

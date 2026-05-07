@@ -9,7 +9,13 @@ import 'reservas_screen.dart';
 
 /// Shell principal con navegación inferior (Inicio, Reservas, Pagos, Perfil).
 class MenuNavegacionPrincipal extends StatefulWidget {
-  const MenuNavegacionPrincipal({super.key});
+  const MenuNavegacionPrincipal({
+    super.key,
+    required this.isAdmin,
+  });
+
+  /// Rol desde Firestore: controla acceso al panel admin en [InicioScreen].
+  final bool isAdmin;
 
   @override
   State<MenuNavegacionPrincipal> createState() => _MenuNavegacionPrincipalState();
@@ -21,13 +27,6 @@ class _MenuNavegacionPrincipalState extends State<MenuNavegacionPrincipal>
 
   late AnimationController _controladorAnimacion;
   late Animation<double> _animacionLatido;
-
-  final List<Widget> _pantallas = [
-    const InicioScreen(),
-    const ReservasScreen(),
-    const PagosScreen(),
-    const PerfilScreen(),
-  ];
 
   @override
   void initState() {
@@ -48,9 +47,16 @@ class _MenuNavegacionPrincipalState extends State<MenuNavegacionPrincipal>
 
   @override
   Widget build(BuildContext context) {
+    final pantallas = <Widget>[
+      InicioScreen(isAdmin: widget.isAdmin),
+      const ReservasScreen(),
+      const PagosScreen(),
+      const PerfilScreen(),
+    ];
+
     return Scaffold(
       extendBody: true,
-      body: _pantallas[_indiceSeleccionado],
+      body: pantallas[_indiceSeleccionado],
       floatingActionButton: ScaleTransition(
         scale: _animacionLatido,
         child: FloatingActionButton(

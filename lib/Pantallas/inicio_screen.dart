@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import '../Models/residente.dart';
 import 'admin_residentes_screen.dart';
+import 'generar_qr_screen.dart';
+import 'reservas_screen.dart';
 
 class InicioScreen extends StatelessWidget {
-  const InicioScreen({super.key});
+  const InicioScreen({super.key, this.isAdmin = false});
+
+  /// Solo usuarios con rol `admin` en Firestore ven el acceso al panel residentes.
+  final bool isAdmin;
 
   // Dato temporal: reemplazar por Provider/Bloc cuando conectemos Firebase
   static final Residente _residente = Residente(
@@ -58,10 +63,22 @@ class InicioScreen extends StatelessWidget {
                   mainAxisSpacing: 15,
                   childAspectRatio: 1.3,
                   children: [
-                    _construirBotonGrid(context, Icons.sports_tennis, 'Reservas', 'Zonas comunes', const Color(0xFF3B82F6), null),
-                    _construirBotonGrid(context, Icons.qr_code_scanner, 'Pase Visitas', 'Generar QR', const Color(0xFF10B981), () {
-                      _mostrarVentanaQR(context);
-                    }),
+                    _construirBotonGrid(
+                      context,
+                      Icons.sports_tennis,
+                      'Reservas',
+                      'Zonas comunes',
+                      const Color(0xFF3B82F6),
+                      () => _abrirReservas(context),
+                    ),
+                    _construirBotonGrid(
+                      context,
+                      Icons.qr_code_scanner,
+                      'Pase Visitas',
+                      'Generar QR',
+                      const Color(0xFF10B981),
+                      () => _abrirGenerarQR(context),
+                    ),
                     _construirBotonGrid(context, Icons.inventory_2, 'Paquetes', '3 Pendientes', const Color(0xFFF59E0B), null),
                     _construirBotonGrid(context, Icons.campaign, 'Comunicados', 'Últimas noticias', const Color(0xFF8B5CF6), null),
                   ],
@@ -115,42 +132,46 @@ class InicioScreen extends StatelessWidget {
               Text(_residente.unidadCompleta, style: const TextStyle(color: Colors.white70, fontSize: 14)),
             ],
           ),
-          GestureDetector(
-  onTap: () {
-  Navigator.push(
-    context,
-    MaterialPageRoute(builder: (context) => const AdminResidentesScreen()),
-  );
-},
-  child: Stack(
-    children: [
-      const CircleAvatar(
-        radius: 25, 
-        backgroundColor: Colors.white24, 
-        child: Icon(Icons.person, color: Colors.white, size: 30)
-      ),
-      if (_residente.notificacionesSinLeer > 0)
-        Positioned(
-          right: 0, top: 0,
-          child: Container(
-            padding: const EdgeInsets.all(4),
-            decoration: const BoxDecoration(
-              color: Colors.redAccent, 
-              shape: BoxShape.circle
+          if (isAdmin)
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AdminResidentesScreen(),
+                  ),
+                );
+              },
+              child: Stack(
+                children: [
+                  const CircleAvatar(
+                    radius: 25,
+                    backgroundColor: Colors.white24,
+                    child: Icon(Icons.person, color: Colors.white, size: 30),
+                  ),
+                  if (_residente.notificacionesSinLeer > 0)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${_residente.notificacionesSinLeer}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
-            child: Text(
-              '${_residente.notificacionesSinLeer}', 
-              style: const TextStyle(
-                color: Colors.white, 
-                fontSize: 10, 
-                fontWeight: FontWeight.bold
-              )
-            ),
-          ),
-        )
-    ],
-  ),
-),
         ],
       ),
     );
@@ -217,7 +238,10 @@ class InicioScreen extends StatelessWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   child: Icon(icono, color: color, size: 28),
                 ),
                 const Spacer(),
@@ -257,52 +281,27 @@ class InicioScreen extends StatelessWidget {
     return meses[mes - 1];
   }
 
-  void _mostrarVentanaQR(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext contextoDialogo) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: Colors.white,
-          child: Container(
-            padding: const EdgeInsets.all(25),
-            height: 380,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('Pase VIP Visitas', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
-                const SizedBox(height: 5),
-                const Text('Válido solo por hoy', style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 14)),
-                const SizedBox(height: 25),
-                Container(
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: Colors.grey.shade300, width: 2),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: const Icon(Icons.qr_code_2, size: 120, color: Color(0xFF1E293B)),
-                ),
-                const SizedBox(height: 20),
-                const Text('Comparte este código en portería', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 45,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(contextoDialogo),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E3A8A),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('Cerrar y Volver', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  ),
-                )
-              ],
-            ),
-          ),
-        );
-      }
+  void _abrirReservas(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ReservasScreen(
+          nombre: _residente.nombre,
+          apartamento: _residente.apartamento,
+          torre: _residente.torre,
+        ),
+      ),
+    );
+  }
+
+  void _abrirGenerarQR(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => GenerarQRScreen(
+          nombre: _residente.nombre,
+          apartamento: _residente.apartamento,
+          torre: _residente.torre,
+        ),
+      ),
     );
   }
 }
