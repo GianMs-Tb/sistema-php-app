@@ -5,8 +5,17 @@ abstract class ZonasComunes {
   static const piscina = 'Piscina';
   static const bbq = 'BBQ';
   static const salonSocial = 'Salón Social';
+  static const cancha = 'Cancha';
+  static const cine = 'Cine';
 
-  static const todas = <String>[piscina, bbq, salonSocial];
+  /// Lista canónica usada por la UI de selección.
+  static const todas = <String>[
+    piscina,
+    salonSocial,
+    cancha,
+    cine,
+    bbq,
+  ];
 }
 
 /// Una reserva guardada en Firestore (`reservas`).

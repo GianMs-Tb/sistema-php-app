@@ -1,16 +1,26 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import '../Models/app_user.dart';
 import '../Models/residente.dart';
 import 'admin_residentes_screen.dart';
+import 'categorias_reserva_screen.dart';
 import 'generar_qr_screen.dart';
-import 'reservas_screen.dart';
 
-class InicioScreen extends StatelessWidget {
+class InicioScreen extends StatefulWidget {
   const InicioScreen({super.key, this.isAdmin = false});
 
-  /// Solo usuarios con rol `admin` en Firestore ven el acceso al panel residentes.
+  /// Hint inicial proveniente del shell. La pantalla además relee `users/{uid}`
+  /// para mostrar el botón de admin con datos frescos de Firestore.
   final bool isAdmin;
 
-  // Dato temporal: reemplazar por Provider/Bloc cuando conectemos Firebase
+  @override
+  State<InicioScreen> createState() => _InicioScreenState();
+}
+
+class _InicioScreenState extends State<InicioScreen> {
+  // Dato temporal: reemplazar por Provider/Bloc cuando conectemos Firebase.
   static final Residente _residente = Residente(
     nombre: 'Santiago',
     apartamento: 'Apto 502',
@@ -19,6 +29,25 @@ class InicioScreen extends StatelessWidget {
     fechaVencimiento: DateTime(2026, 4, 15),
     notificacionesSinLeer: 2,
   );
+
+  /// Future cacheado para evitar parpadeo en cada rebuild.
+  late final Future<bool> _esAdminFuture = _cargarRolAdmin();
+
+  Future<bool> _cargarRolAdmin() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (!snap.exists) return false;
+      final appUser = AppUser.fromMap(user.uid, snap.data() ?? {});
+      return appUser.isAdmin;
+    } catch (_) {
+      return false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +77,11 @@ class InicioScreen extends StatelessWidget {
                 const Center(
                   child: Text(
                     'Gestión Digital',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
                   ),
                 ),
 
@@ -79,8 +112,22 @@ class InicioScreen extends StatelessWidget {
                       const Color(0xFF10B981),
                       () => _abrirGenerarQR(context),
                     ),
-                    _construirBotonGrid(context, Icons.inventory_2, 'Paquetes', '3 Pendientes', const Color(0xFFF59E0B), null),
-                    _construirBotonGrid(context, Icons.campaign, 'Comunicados', 'Últimas noticias', const Color(0xFF8B5CF6), null),
+                    _construirBotonGrid(
+                      context,
+                      Icons.inventory_2,
+                      'Paquetes',
+                      '3 Pendientes',
+                      const Color(0xFFF59E0B),
+                      null,
+                    ),
+                    _construirBotonGrid(
+                      context,
+                      Icons.campaign,
+                      'Comunicados',
+                      'Últimas noticias',
+                      const Color(0xFF8B5CF6),
+                      null,
+                    ),
                   ],
                 ),
 
@@ -89,7 +136,11 @@ class InicioScreen extends StatelessWidget {
 
                 const Text(
                   'Último Comunicado',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
                 ),
 
                 const SizedBox(height: 15),
@@ -124,54 +175,31 @@ class InicioScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Hola, ${_residente.nombre}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 5),
-              Text(_residente.unidadCompleta, style: const TextStyle(color: Colors.white70, fontSize: 14)),
-            ],
-          ),
-          if (isAdmin)
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AdminResidentesScreen(),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Hola, ${_residente.nombre}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
                   ),
-                );
-              },
-              child: Stack(
-                children: [
-                  const CircleAvatar(
-                    radius: 25,
-                    backgroundColor: Colors.white24,
-                    child: Icon(Icons.person, color: Colors.white, size: 30),
-                  ),
-                  if (_residente.notificacionesSinLeer > 0)
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.redAccent,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          '${_residente.notificacionesSinLeer}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  _residente.unidadCompleta,
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              ],
             ),
+          ),
+          _BotonAdminHeader(
+            future: _esAdminFuture,
+            initialIsAdmin: widget.isAdmin,
+            onTap: () => _abrirAdmin(context),
+          ),
         ],
       ),
     );
@@ -184,52 +212,100 @@ class InicioScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 15, offset: Offset(0, 8))],
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 15, offset: Offset(0, 8)),
+        ],
       ),
       child: Column(
         children: [
           const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Estado de Cuenta', style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.w600)),
+              Text(
+                'Estado de Cuenta',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               Icon(Icons.more_horiz, color: Colors.grey),
             ],
           ),
           const SizedBox(height: 15),
-          Text(_residente.saldoFormateado, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Color(0xFF1E293B))),
+          Text(
+            _residente.saldoFormateado,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF1E293B),
+            ),
+          ),
           const SizedBox(height: 5),
           Text(
             'Vence el ${_residente.fechaVencimiento.day} de ${_nombreMes(_residente.fechaVencimiento.month)}',
-            style: const TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w500),
+            style: const TextStyle(
+              color: Colors.redAccent,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 20),
           SizedBox(
-            width: double.infinity, height: 45,
+            width: double.infinity,
+            height: 45,
             child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E3A8A), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1E3A8A),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               onPressed: () {},
-              child: const Text('Pagar Administración', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'Pagar Administración',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
-  Widget _construirBotonGrid(BuildContext context, IconData icono, String titulo, String subtitulo, Color color, VoidCallback? accion) {
+  Widget _construirBotonGrid(
+    BuildContext context,
+    IconData icono,
+    String titulo,
+    String subtitulo,
+    Color color,
+    VoidCallback? accion,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))],
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: accion ?? () {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$titulo próximamente...'), duration: const Duration(seconds: 1)));
-          },
+          onTap: accion ??
+              () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('$titulo próximamente...'),
+                    duration: const Duration(seconds: 1),
+                  ),
+                );
+              },
           child: Padding(
             padding: const EdgeInsets.all(15.0),
             child: Column(
@@ -245,9 +321,19 @@ class InicioScreen extends StatelessWidget {
                   child: Icon(icono, color: color, size: 28),
                 ),
                 const Spacer(),
-                Text(titulo, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                Text(
+                  titulo,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(subtitulo, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                Text(
+                  subtitulo,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
               ],
             ),
           ),
@@ -262,29 +348,59 @@ class InicioScreen extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
         border: const Border(left: BorderSide(color: Color(0xFF3B82F6), width: 5)),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3)),
+        ],
       ),
       child: const ListTile(
         contentPadding: EdgeInsets.all(15),
-        leading: CircleAvatar(backgroundColor: Color(0xFFE0E7FF), child: Icon(Icons.water_drop, color: Color(0xFF3B82F6))),
-        title: Text('Mantenimiento de Piscina', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        leading: CircleAvatar(
+          backgroundColor: Color(0xFFE0E7FF),
+          child: Icon(Icons.water_drop, color: Color(0xFF3B82F6)),
+        ),
+        title: Text(
+          'Mantenimiento de Piscina',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        ),
         subtitle: Padding(
           padding: EdgeInsets.only(top: 8.0),
-          child: Text('La piscina estará cerrada este viernes por mantenimiento preventivo.', style: TextStyle(fontSize: 13)),
+          child: Text(
+            'La piscina estará cerrada este viernes por mantenimiento preventivo.',
+            style: TextStyle(fontSize: 13),
+          ),
         ),
       ),
     );
   }
 
   String _nombreMes(int mes) {
-    const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const meses = [
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
+    ];
     return meses[mes - 1];
+  }
+
+  void _abrirAdmin(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AdminResidentesScreen()),
+    );
   }
 
   void _abrirReservas(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ReservasScreen(
+        builder: (_) => CategoriasReservaScreen(
           nombre: _residente.nombre,
           apartamento: _residente.apartamento,
           torre: _residente.torre,
@@ -302,6 +418,51 @@ class InicioScreen extends StatelessWidget {
           torre: _residente.torre,
         ),
       ),
+    );
+  }
+}
+
+/// Engranaje superior derecho del header. Solo se construye cuando Firestore
+/// confirma que el rol del usuario es `admin`. En cualquier otro caso devuelve
+/// `SizedBox.shrink()` sin parpadeo.
+class _BotonAdminHeader extends StatelessWidget {
+  const _BotonAdminHeader({
+    required this.future,
+    required this.initialIsAdmin,
+    required this.onTap,
+  });
+
+  final Future<bool> future;
+  final bool initialIsAdmin;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: future,
+      initialData: initialIsAdmin,
+      builder: (context, snapshot) {
+        final esAdmin = snapshot.data ?? false;
+        if (!esAdmin) return const SizedBox.shrink();
+
+        return Material(
+          color: Colors.white.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: onTap,
+            child: const Padding(
+              padding: EdgeInsets.all(10),
+              child: Icon(
+                Icons.settings,
+                color: Colors.white,
+                size: 26,
+                semanticLabel: 'Panel de administración',
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -13,12 +13,16 @@ class ReservasScreen extends StatefulWidget {
     this.nombre = 'Residente',
     this.apartamento = '',
     this.torre = '',
+    this.zonaInicial,
   });
 
   /// Datos del residente que se almacenarán junto con la reserva.
   final String nombre;
   final String apartamento;
   final String torre;
+
+  /// Si viene desde el grid de categorías, preselecciona esta zona.
+  final String? zonaInicial;
 
   @override
   State<ReservasScreen> createState() => _ReservasScreenState();
@@ -30,7 +34,7 @@ class _ReservasScreenState extends State<ReservasScreen> {
   late DateTime _focusedDay;
   DateTime? _selectedDay;
   CalendarFormat _calendarFormat = CalendarFormat.month;
-  String _zonaSeleccionada = ZonasComunes.piscina;
+  late String _zonaSeleccionada;
   bool _guardando = false;
 
   @override
@@ -39,6 +43,10 @@ class _ReservasScreenState extends State<ReservasScreen> {
     final hoy = DateTime.now();
     _focusedDay = DateTime(hoy.year, hoy.month, hoy.day);
     _selectedDay = _focusedDay;
+    final inicial = widget.zonaInicial;
+    _zonaSeleccionada = (inicial != null && ZonasComunes.todas.contains(inicial))
+        ? inicial
+        : ZonasComunes.piscina;
   }
 
   String? get _uid => FirebaseAuth.instance.currentUser?.uid;
@@ -367,6 +375,10 @@ class _ReservasScreenState extends State<ReservasScreen> {
         return Icons.outdoor_grill;
       case ZonasComunes.salonSocial:
         return Icons.celebration;
+      case ZonasComunes.cancha:
+        return Icons.sports_soccer;
+      case ZonasComunes.cine:
+        return Icons.movie;
       default:
         return Icons.event;
     }

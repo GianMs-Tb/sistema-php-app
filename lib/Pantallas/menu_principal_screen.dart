@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'inicio_screen.dart';
 import 'pagos_screen.dart';
 import 'perfil_screen.dart';
-import 'reservas_screen.dart';
+import 'pqrs_screen.dart';
 
-/// Shell principal con navegación inferior (Inicio, Reservas, Pagos, Perfil).
+/// Shell principal con navegación inferior (Inicio, PQRS, Pagos, Perfil).
 class MenuNavegacionPrincipal extends StatefulWidget {
   const MenuNavegacionPrincipal({
     super.key,
@@ -49,7 +49,7 @@ class _MenuNavegacionPrincipalState extends State<MenuNavegacionPrincipal>
   Widget build(BuildContext context) {
     final pantallas = <Widget>[
       InicioScreen(isAdmin: widget.isAdmin),
-      const ReservasScreen(),
+      const PqrsScreen(),
       const PagosScreen(),
       const PerfilScreen(),
     ];
@@ -81,7 +81,7 @@ class _MenuNavegacionPrincipalState extends State<MenuNavegacionPrincipal>
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _construirIconoNav(Icons.home, 'Inicio', 0),
-                _construirIconoNav(Icons.calendar_today, 'Reservas', 1),
+                _construirIconoNav(Icons.support_agent, 'PQRS', 1),
                 const SizedBox(width: 40),
                 _construirIconoNav(Icons.receipt_long, 'Pagos', 2),
                 _construirIconoNav(Icons.person, 'Perfil', 3),

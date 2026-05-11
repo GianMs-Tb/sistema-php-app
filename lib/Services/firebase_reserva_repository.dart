@@ -26,6 +26,19 @@ class FirebaseReservaRepository {
     });
   }
 
+  /// Reservas futuras (incluyendo el día actual) del residente, en orden ascendente.
+  Stream<List<Reserva>> streamReservasFuturasDeResidente(String uid) {
+    final hoy = DateTime.now();
+    final inicio = DateTime(hoy.year, hoy.month, hoy.day);
+    return _col
+        .where('residenteUid', isEqualTo: uid)
+        .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(inicio))
+        .orderBy('fecha')
+        .snapshots()
+        .map((snap) =>
+            snap.docs.map((d) => Reserva.fromMap(d.id, d.data())).toList());
+  }
+
   /// Reservas globales (admin) ordenadas por fecha.
   Stream<List<Reserva>> streamTodas() {
     return _col.orderBy('fecha').snapshots().map((snap) {
