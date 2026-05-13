@@ -32,4 +32,15 @@ class FirebaseResidenteRepository {
   Future<void> eliminar(String id) async {
     await _col.doc(id).delete();
   }
+
+  /// Marca al residente como inactivo (soft-delete). El documento se mantiene
+  /// en Firestore para preservar histórico.
+  Future<void> inactivar(String id) async {
+    await _col.doc(id).update({'status': ResidenteStatus.inactive});
+  }
+
+  /// Reactiva un residente archivado.
+  Future<void> reactivar(String id) async {
+    await _col.doc(id).update({'status': ResidenteStatus.active});
+  }
 }

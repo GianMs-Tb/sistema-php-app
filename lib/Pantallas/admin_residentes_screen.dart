@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 
 import '../Models/residente_model.dart';
 import '../Services/firebase_residente_repository.dart';
+import 'admin_pqrs_screen.dart';
 
 String _formatoFechaCorta(DateTime d) {
-  return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  return '${d.day.toString().padLeft(2, '0')}/'
+      '${d.month.toString().padLeft(2, '0')}/${d.year}';
 }
 
 class AdminResidentesScreen extends StatefulWidget {
@@ -17,16 +19,52 @@ class AdminResidentesScreen extends StatefulWidget {
 
 class _AdminResidentesScreenState extends State<AdminResidentesScreen> {
   final _repo = FirebaseResidenteRepository();
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+
+  /// Si es `true` la lista muestra residentes inactivos en lugar de activos.
+  bool _verArchivados = false;
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  /// Filtro local por nombre/apartamento/torre + segmento activo/archivado.
+  List<ResidenteModel> _filtrar(List<ResidenteModel> lista) {
+    final segmento = lista.where((r) =>
+        _verArchivados ? r.esInactivo : r.esActivo);
+
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) return segmento.toList();
+
+    return segmento.where((r) {
+      return r.nombre.toLowerCase().contains(q) ||
+          r.apartamento.toLowerCase().contains(q) ||
+          r.torre.toLowerCase().contains(q);
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         title: const Text('Residentes / Apartamentos'),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF1E293B),
         elevation: 0,
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'Gestión PQRS',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AdminPqrsScreen()),
+            ),
+            icon: const Icon(Icons.support_agent),
+          ),
+        ],
       ),
       body: StreamBuilder<List<ResidenteModel>>(
         stream: _repo.streamResidentes(),
@@ -43,167 +81,384 @@ class _AdminResidentesScreenState extends State<AdminResidentesScreen> {
               ),
             );
           }
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
 
-          final lista = snapshot.data ?? [];
-          if (lista.isEmpty) {
-            return Center(
-              child: Text(
-                'No hay residentes.\nToca + para agregar.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 16,
-                ),
+          final cargando = snapshot.connectionState == ConnectionState.waiting;
+          final todos = snapshot.data ?? const <ResidenteModel>[];
+          final totalActivos = todos.where((r) => r.esActivo).length;
+          final totalArchivados = todos.where((r) => r.esInactivo).length;
+          final filtradas = _filtrar(todos);
+
+          return Column(
+            children: [
+              _construirEstadisticas(total: totalActivos),
+              _construirToggleArchivados(
+                totalArchivados: totalArchivados,
+                totalActivos: totalActivos,
               ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-            itemCount: lista.length,
-            itemBuilder: (context, index) {
-              final r = lista[index];
-              return _TarjetaResidente(
-                residente: r,
-                onEditarSaldo: () => _mostrarDialogoSaldo(context, r),
-                onEliminar: () => _confirmarEliminar(context, r),
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _mostrarDialogoNuevoResidente(context),
-        backgroundColor: const Color(0xFF2563EB),
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-    );
-  }
-
-  Future<void> _mostrarDialogoNuevoResidente(BuildContext context) async {
-    final nombreCtrl = TextEditingController();
-    final aptoCtrl = TextEditingController();
-    final torreCtrl = TextEditingController();
-    final saldoCtrl = TextEditingController();
-    final notifCtrl = TextEditingController(text: '0');
-    DateTime fecha = DateTime.now().add(const Duration(days: 30));
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) {
-          return AlertDialog(
-            title: const Text('Nuevo residente'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nombreCtrl,
-                    decoration: const InputDecoration(labelText: 'Nombre'),
-                    textCapitalization: TextCapitalization.words,
-                  ),
-                  TextField(
-                    controller: aptoCtrl,
-                    decoration: const InputDecoration(labelText: 'Apartamento'),
-                  ),
-                  TextField(
-                    controller: torreCtrl,
-                    decoration: const InputDecoration(labelText: 'Torre'),
-                  ),
-                  TextField(
-                    controller: saldoCtrl,
-                    decoration: const InputDecoration(labelText: 'Saldo pendiente'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                    ],
-                  ),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Vencimiento'),
-                    subtitle: Text(_formatoFechaCorta(fecha)),
-                    trailing: const Icon(Icons.calendar_today),
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: ctx,
-                        initialDate: fecha,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2100),
-                      );
-                      if (picked != null) {
-                        setLocal(() => fecha = picked);
-                      }
-                    },
-                  ),
-                  TextField(
-                    controller: notifCtrl,
-                    decoration: const InputDecoration(labelText: 'Notif. sin leer'),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancelar'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Guardar'),
+              _construirBuscador(),
+              const SizedBox(height: 8),
+              Expanded(
+                child: cargando
+                    ? const Center(child: CircularProgressIndicator())
+                    : _construirListado(filtradas, totalActivos, totalArchivados),
               ),
             ],
           );
         },
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _mostrarDialogoNuevoResidente(context),
+        backgroundColor: const Color(0xFF2563EB),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text(
+          'Nuevo',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dashboard: tarjetas de estadísticas
+  // ---------------------------------------------------------------------------
+
+  Widget _construirEstadisticas({required int total}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: _StatCard(
+              icono: Icons.people,
+              titulo: 'Total Residentes',
+              valor: '$total',
+              color: const Color(0xFF2563EB),
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: _StatCard(
+              icono: Icons.check_circle,
+              titulo: 'Zonas Activas',
+              valor: '4',
+              color: Color(0xFF10B981),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Toggle Activos / Archivados
+  // ---------------------------------------------------------------------------
+
+  Widget _construirToggleArchivados({
+    required int totalArchivados,
+    required int totalActivos,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: SegmentedButton<bool>(
+              segments: [
+                ButtonSegment<bool>(
+                  value: false,
+                  label: Text('Activos ($totalActivos)'),
+                  icon: const Icon(Icons.people_alt_outlined),
+                ),
+                ButtonSegment<bool>(
+                  value: true,
+                  label: Text('Archivados ($totalArchivados)'),
+                  icon: const Icon(Icons.archive_outlined),
+                ),
+              ],
+              selected: {_verArchivados},
+              showSelectedIcon: false,
+              onSelectionChanged: (selected) {
+                setState(() => _verArchivados = selected.first);
+              },
+              style: ButtonStyle(
+                visualDensity: VisualDensity.compact,
+                textStyle: const WidgetStatePropertyAll(
+                  TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Buscador reactivo
+  // ---------------------------------------------------------------------------
+
+  Widget _construirBuscador() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: TextField(
+          controller: _searchCtrl,
+          onChanged: (value) => setState(() => _query = value),
+          textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            hintText: 'Buscar por nombre, apartamento o torre',
+            hintStyle: TextStyle(color: Colors.grey.shade500),
+            prefixIcon: const Icon(Icons.search, color: Color(0xFF2563EB)),
+            suffixIcon: _query.isEmpty
+                ? null
+                : IconButton(
+                    icon: const Icon(Icons.close, color: Colors.grey),
+                    onPressed: () {
+                      _searchCtrl.clear();
+                      setState(() => _query = '');
+                    },
+                  ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Listado de residentes (resultado del filtro local)
+  // ---------------------------------------------------------------------------
+
+  Widget _construirListado(
+    List<ResidenteModel> filtradas,
+    int totalActivos,
+    int totalArchivados,
+  ) {
+    if (_verArchivados && totalArchivados == 0) {
+      return _construirVacio(
+        Icons.archive_outlined,
+        'No hay residentes archivados.',
+      );
+    }
+    if (!_verArchivados && totalActivos == 0) {
+      return _construirVacio(
+        Icons.people_outline,
+        'No hay residentes.\nToca + para agregar.',
+      );
+    }
+    if (filtradas.isEmpty) {
+      return _construirVacio(
+        Icons.search_off,
+        'Sin resultados para "${_query.trim()}".',
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+      itemCount: filtradas.length,
+      itemBuilder: (context, index) {
+        final r = filtradas[index];
+        return _TarjetaResidente(
+          residente: r,
+          mostrarComoArchivado: _verArchivados,
+          onEditarSaldo: () => _mostrarDialogoSaldo(context, r),
+          onEditarDatos: () => _mostrarDialogoEditar(context, r),
+          onInactivar: () => _confirmarInactivar(context, r),
+          onReactivar: () => _confirmarReactivar(context, r),
+        );
+      },
+    );
+  }
+
+  Widget _construirVacio(IconData icono, String texto) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icono, color: Colors.grey.shade400, size: 56),
+            const SizedBox(height: 14),
+            Text(
+              texto,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Diálogo de nuevo residente (formulario limpio)
+  // ---------------------------------------------------------------------------
+
+  Future<void> _mostrarDialogoNuevoResidente(BuildContext context) async {
+    final result = await _mostrarFormularioResidente(
+      context: context,
+      titulo: 'Nuevo residente',
+      etiquetaAccion: 'Guardar',
+    );
+    if (result == null) return;
+
+    final nuevo = ResidenteModel(
+      id: '',
+      nombre: result.nombre,
+      apartamento: result.apartamento,
+      torre: result.torre,
+      saldoPendiente: 0,
+      fechaVencimiento: null,
+      notificacionesSinLeer: 0,
+      status: ResidenteStatus.active,
     );
 
-    if (ok == true && context.mounted) {
-      final nombre = nombreCtrl.text.trim();
-      if (nombre.isEmpty) return;
+    try {
+      await _repo.crear(nuevo);
+      _mostrarSnack('Residente creado');
+    } catch (e) {
+      _mostrarSnack('Error al crear: $e', esError: true);
+    }
+  }
 
-      final saldo = double.tryParse(saldoCtrl.text.replaceAll(',', '.')) ?? 0;
-      final notif = int.tryParse(notifCtrl.text.trim()) ?? 0;
+  // ---------------------------------------------------------------------------
+  // Diálogo de edición de residente (pre-llenado)
+  // ---------------------------------------------------------------------------
 
-      final nuevo = ResidenteModel(
-        id: '',
-        nombre: nombre,
-        apartamento: aptoCtrl.text.trim(),
-        torre: torreCtrl.text.trim(),
-        saldoPendiente: saldo,
-        fechaVencimiento: fecha,
-        notificacionesSinLeer: notif,
+  Future<void> _mostrarDialogoEditar(
+    BuildContext context,
+    ResidenteModel r,
+  ) async {
+    final result = await _mostrarFormularioResidente(
+      context: context,
+      titulo: 'Editar residente',
+      etiquetaAccion: 'Guardar cambios',
+      nombreInicial: r.nombre,
+      apartamentoInicial: r.apartamento,
+      torreInicial: r.torre,
+    );
+    if (result == null) return;
+
+    try {
+      await _repo.actualizar(
+        r.copyWith(
+          nombre: result.nombre,
+          apartamento: result.apartamento,
+          torre: result.torre,
+        ),
       );
+      _mostrarSnack('Residente actualizado');
+    } catch (e) {
+      _mostrarSnack('Error al actualizar: $e', esError: true);
+    }
+  }
 
-      try {
-        await _repo.crear(nuevo);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Residente creado')),
-          );
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e')),
-          );
-        }
+  /// Formulario único reutilizado para crear y editar. Devuelve `null` si el
+  /// usuario cancela o si la validación falla.
+  Future<_DatosResidenteForm?> _mostrarFormularioResidente({
+    required BuildContext context,
+    required String titulo,
+    required String etiquetaAccion,
+    String nombreInicial = '',
+    String apartamentoInicial = '',
+    String torreInicial = '',
+  }) async {
+    final nombreCtrl = TextEditingController(text: nombreInicial);
+    final aptoCtrl = TextEditingController(text: apartamentoInicial);
+    final torreCtrl = TextEditingController(text: torreInicial);
+
+    _DatosResidenteForm? datos;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(titulo),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nombreCtrl,
+                decoration: const InputDecoration(labelText: 'Nombre'),
+                textCapitalization: TextCapitalization.words,
+                autofocus: nombreInicial.isEmpty,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: aptoCtrl,
+                decoration: const InputDecoration(labelText: 'Apartamento'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: torreCtrl,
+                decoration: const InputDecoration(labelText: 'Torre'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(etiquetaAccion),
+          ),
+        ],
+      ),
+    );
+
+    if (ok == true) {
+      final nombre = nombreCtrl.text.trim();
+      if (nombre.isEmpty) {
+        _mostrarSnack('El nombre es obligatorio.', esError: true);
+      } else {
+        datos = _DatosResidenteForm(
+          nombre: nombre,
+          apartamento: aptoCtrl.text.trim(),
+          torre: torreCtrl.text.trim(),
+        );
       }
     }
 
     nombreCtrl.dispose();
     aptoCtrl.dispose();
     torreCtrl.dispose();
-    saldoCtrl.dispose();
-    notifCtrl.dispose();
+
+    return datos;
   }
 
-  Future<void> _mostrarDialogoSaldo(BuildContext context, ResidenteModel r) async {
+  // ---------------------------------------------------------------------------
+  // Diálogo de saldo (mantenido)
+  // ---------------------------------------------------------------------------
+
+  Future<void> _mostrarDialogoSaldo(
+      BuildContext context, ResidenteModel r) async {
     final ctrl = TextEditingController(text: r.saldoPendiente.toString());
 
     final ok = await showDialog<bool>(
@@ -235,179 +490,388 @@ class _AdminResidentesScreenState extends State<AdminResidentesScreen> {
       ),
     );
 
-    if (ok == true && context.mounted) {
-      final saldo = double.tryParse(ctrl.text.replaceAll(',', '.')) ?? r.saldoPendiente;
+    if (ok == true) {
+      final saldo =
+          double.tryParse(ctrl.text.replaceAll(',', '.')) ?? r.saldoPendiente;
       try {
         await _repo.actualizar(r.copyWith(saldoPendiente: saldo));
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Saldo actualizado')),
-          );
-        }
+        _mostrarSnack('Saldo actualizado');
       } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e')),
-          );
-        }
+        _mostrarSnack('Error al actualizar saldo: $e', esError: true);
       }
     }
     ctrl.dispose();
   }
 
-  Future<void> _confirmarEliminar(BuildContext context, ResidenteModel r) async {
+  // ---------------------------------------------------------------------------
+  // Inactivar / reactivar (soft delete)
+  // ---------------------------------------------------------------------------
+
+  Future<void> _confirmarInactivar(
+      BuildContext context, ResidenteModel r) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Eliminar residente'),
-        content: Text('¿Eliminar a ${r.nombre}?'),
+        title: const Text('Inactivar residente'),
+        content: Text(
+          '¿Seguro que deseas inactivar a ${r.nombre}? '
+          'No podrá acceder a la app, pero su historial se conservará.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFEA580C),
+            ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Eliminar'),
+            child: const Text('Inactivar'),
           ),
         ],
       ),
     );
 
-    if (ok == true && context.mounted) {
-      try {
-        await _repo.eliminar(r.id);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Residente eliminado')),
-          );
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e')),
-          );
-        }
-      }
+    if (ok != true) return;
+
+    try {
+      await _repo.inactivar(r.id);
+      _mostrarSnack('${r.nombre} fue archivado');
+    } catch (e) {
+      _mostrarSnack('Error al inactivar: $e', esError: true);
     }
   }
 
+  Future<void> _confirmarReactivar(
+      BuildContext context, ResidenteModel r) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reactivar residente'),
+        content: Text('¿Reactivar a ${r.nombre}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reactivar'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return;
+
+    try {
+      await _repo.reactivar(r.id);
+      _mostrarSnack('${r.nombre} fue reactivado');
+    } catch (e) {
+      _mostrarSnack('Error al reactivar: $e', esError: true);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  void _mostrarSnack(String texto, {bool esError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(texto),
+        backgroundColor: esError ? Colors.redAccent : null,
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Modelos de soporte locales
+// =============================================================================
+
+class _DatosResidenteForm {
+  const _DatosResidenteForm({
+    required this.nombre,
+    required this.apartamento,
+    required this.torre,
+  });
+
+  final String nombre;
+  final String apartamento;
+  final String torre;
+}
+
+// =============================================================================
+// Widgets de soporte
+// =============================================================================
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.icono,
+    required this.titulo,
+    required this.valor,
+    required this.color,
+  });
+
+  final IconData icono;
+  final String titulo;
+  final String valor;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icono, color: color, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  valor,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _TarjetaResidente extends StatelessWidget {
   const _TarjetaResidente({
     required this.residente,
+    required this.mostrarComoArchivado,
     required this.onEditarSaldo,
-    required this.onEliminar,
+    required this.onEditarDatos,
+    required this.onInactivar,
+    required this.onReactivar,
   });
 
   final ResidenteModel residente;
+  final bool mostrarComoArchivado;
   final VoidCallback onEditarSaldo;
-  final VoidCallback onEliminar;
+  final VoidCallback onEditarDatos;
+  final VoidCallback onInactivar;
+  final VoidCallback onReactivar;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final saldoTxt = residente.saldoPendiente.toStringAsFixed(0).replaceAllMapped(
+    final saldoTxt = residente.saldoPendiente
+        .toStringAsFixed(0)
+        .replaceAllMapped(
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (m) => '${m[1]}.',
         );
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        residente.nombre,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF1E293B),
+    final archivado = residente.esInactivo;
+
+    return Opacity(
+      opacity: archivado ? 0.85 : 1.0,
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        elevation: 0,
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: archivado
+                ? const Color(0xFFEA580C).withValues(alpha: 0.35)
+                : Colors.grey.withValues(alpha: 0.2),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          residente.nombre,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF1E293B),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _detalleUbicacion(),
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (archivado)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEA580C).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'Archivado',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFEA580C),
+                          letterSpacing: 0.4,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${residente.apartamento} · ${residente.torre}',
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                    )
+                  else if (residente.notificacionesSinLeer > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ],
-                  ),
-                ),
-                if (residente.notificacionesSinLeer > 0)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2563EB).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${residente.notificacionesSinLeer} avisos',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF2563EB),
+                      child: Text(
+                        '${residente.notificacionesSinLeer} avisos',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF2563EB),
+                        ),
                       ),
                     ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(Icons.account_balance_wallet_outlined,
+                      size: 18, color: Colors.grey.shade700),
+                  const SizedBox(width: 6),
+                  Text(
+                    '\$ $saldoTxt',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(Icons.account_balance_wallet_outlined, size: 18, color: Colors.grey.shade700),
-                const SizedBox(width: 6),
-                Text(
-                  '\$ $saldoTxt',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                    color: Color(0xFF0F172A),
+                  const SizedBox(width: 16),
+                  Icon(Icons.event_outlined,
+                      size: 18, color: Colors.grey.shade700),
+                  const SizedBox(width: 6),
+                  Text(
+                    residente.fechaVencimiento == null
+                        ? '—'
+                        : _formatoFechaCorta(residente.fechaVencimiento!),
+                    style: TextStyle(color: Colors.grey.shade700),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Icon(Icons.event_outlined, size: 18, color: Colors.grey.shade700),
-                const SizedBox(width: 6),
-                Text(
-                  _formatoFechaCorta(residente.fechaVencimiento),
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton.icon(
-                  onPressed: onEditarSaldo,
-                  icon: const Icon(Icons.edit_outlined, size: 18),
-                  label: const Text('Editar saldo'),
-                ),
-                TextButton.icon(
-                  onPressed: onEliminar,
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                  label: const Text('Eliminar'),
-                  style: TextButton.styleFrom(foregroundColor: Colors.red.shade700),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+              const SizedBox(height: 4),
+              _construirAcciones(),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Widget _construirAcciones() {
+    if (mostrarComoArchivado) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          TextButton.icon(
+            onPressed: onReactivar,
+            icon: const Icon(Icons.unarchive_outlined, size: 18),
+            label: const Text('Reactivar'),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF10B981),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        IconButton(
+          tooltip: 'Editar datos',
+          icon: const Icon(Icons.edit_outlined, size: 20),
+          color: const Color(0xFF2563EB),
+          onPressed: onEditarDatos,
+        ),
+        TextButton.icon(
+          onPressed: onEditarSaldo,
+          icon: const Icon(Icons.attach_money_rounded, size: 18),
+          label: const Text('Saldo'),
+        ),
+        TextButton.icon(
+          onPressed: onInactivar,
+          icon: const Icon(Icons.archive_outlined, size: 18),
+          label: const Text('Inactivar'),
+          style: TextButton.styleFrom(
+            foregroundColor: const Color(0xFFEA580C),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _detalleUbicacion() {
+    final parts = <String>[
+      if (residente.apartamento.isNotEmpty) residente.apartamento,
+      if (residente.torre.isNotEmpty) residente.torre,
+    ];
+    return parts.isEmpty ? 'Sin ubicación asignada' : parts.join(' · ');
   }
 }
