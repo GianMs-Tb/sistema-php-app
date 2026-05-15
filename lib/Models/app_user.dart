@@ -2,6 +2,7 @@
 abstract class UserRoles {
   static const admin = 'admin';
   static const residente = 'residente';
+  static const portero = 'portero';
 }
 
 /// Perfil de usuario en la colección `users`.
@@ -18,11 +19,20 @@ class AppUser {
 
   bool get isAdmin => role == UserRoles.admin;
 
+  bool get isPortero => role == UserRoles.portero;
+
   factory AppUser.fromMap(String uid, Map<String, dynamic> map) {
+    final raw = (map['role'] as String?)?.trim().toLowerCase();
+    final role = raw == UserRoles.admin ||
+            raw == UserRoles.portero ||
+            raw == UserRoles.residente
+        ? raw!
+        : UserRoles.residente;
+
     return AppUser(
       uid: uid,
       email: map['email'] as String? ?? '',
-      role: (map['role'] as String?)?.trim().toLowerCase() ?? UserRoles.residente,
+      role: role,
     );
   }
 

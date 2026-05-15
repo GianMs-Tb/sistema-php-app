@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // Importa el shell principal PH (tabs Inicio / Reservas / Pagos / Perfil).
 import 'package:flutter_application_1/Models/app_user.dart';
 import 'package:flutter_application_1/Pantallas/menu_principal_screen.dart';
+import 'package:flutter_application_1/Pantallas/portero_inicio_screen.dart';
 
 // Importa el servicio que encapsula Firebase Authentication.
 import 'package:flutter_application_1/Services/auth_service.dart';
@@ -85,6 +86,10 @@ class _FirestoreRoleGateState extends State<FirestoreRoleGate> {
         final raw =
             (doc != null && doc.exists) ? doc.data() : null;
         final appUser = AppUser.fromMap(widget.user.uid, raw ?? {});
+
+        if (appUser.isPortero) {
+          return const PorteroInicioScreen();
+        }
 
         return MenuNavegacionPrincipal(isAdmin: appUser.isAdmin);
       },

@@ -9,6 +9,7 @@ import '../Services/firebase_comunicado_repository.dart';
 import 'admin_residentes_screen.dart';
 import 'categorias_reserva_screen.dart';
 import 'generar_qr_screen.dart';
+import 'mis_visitas_screen.dart';
 
 class InicioScreen extends StatefulWidget {
   const InicioScreen({super.key, this.isAdmin = false});
@@ -79,6 +80,32 @@ class _InicioScreenState extends State<InicioScreen> {
                 // 2. Espacio perfecto entre el título y los botones
                 const SizedBox(height: 10),
 
+                Row(
+                  children: [
+                    Expanded(
+                      child: _construirBotonGrid(
+                        context,
+                        Icons.sports_tennis,
+                        'Reservas',
+                        'Zonas comunes',
+                        const Color(0xFF3B82F6),
+                        () => _abrirReservas(context),
+                      ),
+                    ),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: _construirBotonGrid(
+                        context,
+                        Icons.group_add_outlined,
+                        'Mis visitas',
+                        'Invitados y QR',
+                        const Color(0xFF0EA5E9),
+                        () => _abrirMisVisitas(context),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 15),
                 GridView.count(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -87,14 +114,6 @@ class _InicioScreenState extends State<InicioScreen> {
                   mainAxisSpacing: 15,
                   childAspectRatio: 1.3,
                   children: [
-                    _construirBotonGrid(
-                      context,
-                      Icons.sports_tennis,
-                      'Reservas',
-                      'Zonas comunes',
-                      const Color(0xFF3B82F6),
-                      () => _abrirReservas(context),
-                    ),
                     _construirBotonGrid(
                       context,
                       Icons.qr_code_scanner,
@@ -533,6 +552,18 @@ class _InicioScreenState extends State<InicioScreen> {
       MaterialPageRoute(
         builder: (_) => GenerarQRScreen(
           nombre: _residente.nombre,
+          apartamento: _residente.apartamento,
+          torre: _residente.torre,
+        ),
+      ),
+    );
+  }
+
+  void _abrirMisVisitas(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MisVisitasScreen(
+          residenteNombre: _residente.nombre,
           apartamento: _residente.apartamento,
           torre: _residente.torre,
         ),
