@@ -57,11 +57,12 @@ class _PqrsScreenState extends State<PqrsScreen> {
                   }
                   final lista = snapshot.data ?? const <Pqrs>[];
                   if (lista.isEmpty) {
-                    return const _Vacio(
+                    return _Vacio(
                       icono: Icons.inbox_outlined,
                       titulo: 'Aún no tienes solicitudes',
                       subtitulo:
                           'Pulsa "Nueva solicitud" para enviar una petición, queja, reclamo o sugerencia.',
+                      onNuevaSolicitud: () => _abrirNuevaSolicitud(uid),
                     );
                   }
                   return ListView.separated(
@@ -73,15 +74,21 @@ class _PqrsScreenState extends State<PqrsScreen> {
                 },
               ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: uid == null ? null : () => _abrirNuevaSolicitud(uid),
-        backgroundColor: const Color(0xFF2563EB),
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
-          'Nueva solicitud',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-        ),
-      ),
+      floatingActionButton: uid == null
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _abrirNuevaSolicitud(uid),
+              backgroundColor: const Color(0xFF2563EB),
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text(
+                'Nueva solicitud',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -324,11 +331,13 @@ class _Vacio extends StatelessWidget {
     required this.icono,
     required this.titulo,
     required this.subtitulo,
+    this.onNuevaSolicitud,
   });
 
   final IconData icono;
   final String titulo;
   final String subtitulo;
+  final VoidCallback? onNuevaSolicitud;
 
   @override
   Widget build(BuildContext context) {
@@ -355,6 +364,14 @@ class _Vacio extends StatelessWidget {
               textAlign: TextAlign.center,
               style: const TextStyle(color: Color(0xFF64748B), height: 1.4),
             ),
+            if (onNuevaSolicitud != null) ...[
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: onNuevaSolicitud,
+                icon: const Icon(Icons.add),
+                label: const Text('Nueva solicitud'),
+              ),
+            ],
           ],
         ),
       ),

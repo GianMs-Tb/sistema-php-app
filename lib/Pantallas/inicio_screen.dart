@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../Models/app_user.dart';
 import '../Models/comunicado_model.dart';
+import '../Models/paquete_model.dart';
 import '../Models/residente.dart';
 import '../Services/firebase_comunicado_repository.dart';
+import '../Services/firebase_paquete_repository.dart';
 import 'admin_residentes_screen.dart';
 import 'categorias_reserva_screen.dart';
 import 'generar_qr_screen.dart';
@@ -34,6 +36,7 @@ class _InicioScreenState extends State<InicioScreen> {
   );
 
   final _comunicadosRepo = FirebaseComunicadoRepository();
+  final _paquetesRepo = FirebasePaqueteRepository();
 
   /// Future cacheado para evitar parpadeo en cada rebuild.
   late final Future<bool> _esAdminFuture = _cargarRolAdmin();
@@ -56,16 +59,47 @@ class _InicioScreenState extends State<InicioScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          _construirHeader(context),
-          const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+    return FutureBuilder<bool>(
+      future: _esAdminFuture,
+      initialData: widget.isAdmin,
+      builder: (context, adminSnap) {
+        final esAdmin = adminSnap.data ?? false;
+        return Scaffold(
+          backgroundColor: const Color(0xFFF5F7FA),
+          appBar: esAdmin
+              ? AppBar(
+                  title: const Text(
+                    'Inicio',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF1E293B),
+                  elevation: 0,
+                  centerTitle: true,
+                  actions: [
+                    IconButton(
+                      tooltip: 'Nuevo comunicado',
+                      onPressed: () => _mostrarDialogoNuevoComunicado(context),
+                      icon: const Icon(Icons.campaign_outlined),
+                    ),
+                    IconButton(
+                      tooltip: 'Panel de administración',
+                      onPressed: () => _abrirAdmin(context),
+                      icon: const Icon(Icons.settings),
+                    ),
+                  ],
+                )
+              : null,
+          body: SingleChildScrollView(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _construirHeader(context, mostrarBotonAdminEnHeader: !esAdmin),
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                 const Center(
                   child: Text(
                     'Gestión Digital',
@@ -80,30 +114,42 @@ class _InicioScreenState extends State<InicioScreen> {
                 // 2. Espacio perfecto entre el título y los botones
                 const SizedBox(height: 10),
 
-                Row(
-                  children: [
-                    Expanded(
-                      child: _construirBotonGrid(
-                        context,
-                        Icons.sports_tennis,
-                        'Reservas',
-                        'Zonas comunes',
-                        const Color(0xFF3B82F6),
-                        () => _abrirReservas(context),
-                      ),
-                    ),
-                    const SizedBox(width: 15),
-                    Expanded(
-                      child: _construirBotonGrid(
-                        context,
-                        Icons.group_add_outlined,
-                        'Mis visitas',
-                        'Invitados y QR',
-                        const Color(0xFF0EA5E9),
-                        () => _abrirMisVisitas(context),
-                      ),
-                    ),
-                  ],
+                _construirSeccionPaquetesPendientes(),
+
+                const SizedBox(height: 10),
+
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final gap = 15.0;
+                    final w = (constraints.maxWidth - gap) / 2;
+                    return Row(
+                      children: [
+                        SizedBox(
+                          width: w,
+                          child: _construirBotonGrid(
+                            context,
+                            Icons.sports_tennis,
+                            'Reservas',
+                            'Zonas comunes',
+                            const Color(0xFF3B82F6),
+                            () => _abrirReservas(context),
+                          ),
+                        ),
+                        SizedBox(width: gap),
+                        SizedBox(
+                          width: w,
+                          child: _construirBotonGrid(
+                            context,
+                            Icons.group_add_outlined,
+                            'Mis visitas',
+                            'Invitados y QR',
+                            const Color(0xFF0EA5E9),
+                            () => _abrirMisVisitas(context),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 15),
                 GridView.count(
@@ -122,14 +168,7 @@ class _InicioScreenState extends State<InicioScreen> {
                       const Color(0xFF10B981),
                       () => _abrirGenerarQR(context),
                     ),
-                    _construirBotonGrid(
-                      context,
-                      Icons.inventory_2,
-                      'Paquetes',
-                      '3 Pendientes',
-                      const Color(0xFFF59E0B),
-                      null,
-                    ),
+                    _construirCeldaPaquetes(context),
                     _construirBotonGrid(
                       context,
                       Icons.campaign,
@@ -143,20 +182,233 @@ class _InicioScreenState extends State<InicioScreen> {
 
                 // 3. Separación ideal entre los botones y la sección de comunicados
                 const SizedBox(height: 32),
-                _construirSeccionComunicados(),
+                _construirSeccionComunicados(esAdmin: esAdmin),
 
-                // 4. El colchón final para la barra de cristal
                 const SizedBox(height: 90),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
+  /// Banner + lista de paquetes en portería para el residente actual.
+  Widget _construirSeccionPaquetesPendientes() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const SizedBox.shrink();
+
+    return StreamBuilder<List<Paquete>>(
+      stream: _paquetesRepo.streamPendientesPorResidente(uid),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+        final lista = snapshot.data ?? const <Paquete>[];
+        if (lista.isEmpty) return const SizedBox.shrink();
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFFBEB),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFF59E0B)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.inventory_2, color: Colors.orange.shade800),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      lista.length == 1
+                          ? 'Tienes 1 paquete en portería'
+                          : 'Tienes ${lista.length} paquetes en portería',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: Colors.orange.shade900,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ...lista.map(
+                (p) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.circle, size: 6, color: Color(0xFFF59E0B)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              p.descripcion.isEmpty ? 'Paquete' : p.descripcion,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF1E293B),
+                              ),
+                            ),
+                            if (p.fechaRecepcion != null)
+                              Text(
+                                'Recibido: ${_formatoFechaPaquete(p.fechaRecepcion!)}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _construirCeldaPaquetes(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      return _construirBotonGrid(
+        context,
+        Icons.inventory_2,
+        'Paquetes',
+        'Inicia sesión',
+        const Color(0xFFF59E0B),
+        null,
+      );
+    }
+
+    return StreamBuilder<List<Paquete>>(
+      stream: _paquetesRepo.streamPendientesPorResidente(uid),
+      builder: (context, snapshot) {
+        final lista = snapshot.data ?? const <Paquete>[];
+        final n = lista.length;
+        final sub = snapshot.connectionState == ConnectionState.waiting
+            ? '…'
+            : (n == 0 ? 'Sin pendientes' : '$n en portería');
+        return _construirBotonGrid(
+          context,
+          Icons.inventory_2,
+          'Paquetes',
+          sub,
+          const Color(0xFFF59E0B),
+          () => _mostrarSheetPaquetes(context, uid),
+        );
+      },
+    );
+  }
+
+  void _mostrarSheetPaquetes(BuildContext context, String uid) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            20 + MediaQuery.of(ctx).viewPadding.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Tus paquetes en portería',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: MediaQuery.of(ctx).size.height * 0.38,
+                child: StreamBuilder<List<Paquete>>(
+                  stream: _paquetesRepo.streamPendientesPorResidente(uid),
+                  builder: (context, snap) {
+                    if (snap.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final list = snap.data ?? const <Paquete>[];
+                    if (list.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'No tienes paquetes pendientes de recoger.',
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      itemCount: list.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (_, i) {
+                        final p = list[i];
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.inventory_2_outlined),
+                          title: Text(
+                            p.descripcion.isEmpty ? 'Paquete' : p.descripcion,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            p.fechaRecepcion != null
+                                ? 'Recibido: ${_formatoFechaPaquete(p.fechaRecepcion!)}'
+                                : 'En portería',
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  static String _formatoFechaPaquete(DateTime d) {
+    final dd = d.day.toString().padLeft(2, '0');
+    final mm = d.month.toString().padLeft(2, '0');
+    final hh = d.hour.toString().padLeft(2, '0');
+    final mi = d.minute.toString().padLeft(2, '0');
+    return '$dd/$mm/${d.year} $hh:$mi';
+  }
+
   /// Header degradado moderno con saludo y botón admin opcional.
-  Widget _construirHeader(BuildContext context) {
+  Widget _construirHeader(
+    BuildContext context, {
+    bool mostrarBotonAdminEnHeader = true,
+  }) {
     return ClipRRect(
       borderRadius: const BorderRadius.only(
         bottomLeft: Radius.circular(34),
@@ -241,11 +493,12 @@ class _InicioScreenState extends State<InicioScreen> {
                           ],
                         ),
                       ),
-                      _BotonAdminHeader(
-                        future: _esAdminFuture,
-                        initialIsAdmin: widget.isAdmin,
-                        onTap: () => _abrirAdmin(context),
-                      ),
+                      if (mostrarBotonAdminEnHeader)
+                        _BotonAdminHeader(
+                          future: _esAdminFuture,
+                          initialIsAdmin: widget.isAdmin,
+                          onTap: () => _abrirAdmin(context),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 18),
@@ -329,9 +582,10 @@ class _InicioScreenState extends State<InicioScreen> {
               },
           child: Padding(
             padding: const EdgeInsets.all(15.0),
-            child: Column(
+                child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
@@ -341,7 +595,7 @@ class _InicioScreenState extends State<InicioScreen> {
                   ),
                   child: Icon(icono, color: color, size: 28),
                 ),
-                const Spacer(),
+                const SizedBox(height: 10),
                 Text(
                   titulo,
                   style: const TextStyle(
@@ -363,83 +617,120 @@ class _InicioScreenState extends State<InicioScreen> {
     );
   }
 
-  /// Feed de comunicados leído de Firestore (colección `comunicados`).
-  /// Para admin agrega un botón "Publicar" inline en la cabecera.
-  Widget _construirSeccionComunicados() {
-    return FutureBuilder<bool>(
-      future: _esAdminFuture,
-      initialData: widget.isAdmin,
-      builder: (context, adminSnap) {
-        final esAdmin = adminSnap.data ?? false;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Comunicados',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
-                    ),
-                  ),
-                ),
-                if (esAdmin)
-                  FilledButton.tonalIcon(
-                    onPressed: () => _mostrarDialogoNuevoComunicado(context),
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Publicar'),
-                    style: FilledButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      foregroundColor: const Color(0xFF1E3A8A),
-                      backgroundColor: const Color(0xFFE0E7FF),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-              ],
+  /// Feed de comunicados (`comunicados`). Residente: solo lectura. Admin: deslizar para eliminar.
+  Widget _construirSeccionComunicados({required bool esAdmin}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Comunicados',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1E293B),
+          ),
+        ),
+        if (esAdmin)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'Desliza un comunicado hacia la izquierda para eliminarlo.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.withValues(alpha: 0.9),
+              ),
             ),
-            const SizedBox(height: 12),
-            StreamBuilder<List<Comunicado>>(
-              stream: _comunicadosRepo.stream(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return _MensajeFeed(
-                    icono: Icons.error_outline,
-                    texto: 'Error al cargar comunicados.',
-                  );
-                }
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                final lista = snapshot.data ?? const <Comunicado>[];
-                if (lista.isEmpty) {
-                  return _MensajeFeed(
-                    icono: Icons.campaign_outlined,
-                    texto: esAdmin
-                        ? 'Aún no hay comunicados.\nPulsa "Publicar" para crear el primero.'
-                        : 'Aún no hay comunicados.',
-                  );
-                }
-                return Column(
-                  children: lista
-                      .map((c) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _TarjetaComunicado(comunicado: c),
-                          ))
-                      .toList(),
+          ),
+        const SizedBox(height: 12),
+        StreamBuilder<List<Comunicado>>(
+          stream: _comunicadosRepo.stream(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return const _MensajeFeed(
+                icono: Icons.error_outline,
+                texto: 'Error al cargar comunicados.',
+              );
+            }
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            final lista = snapshot.data ?? const <Comunicado>[];
+            if (lista.isEmpty) {
+              return _MensajeFeed(
+                icono: Icons.campaign_outlined,
+                texto: esAdmin
+                    ? 'Aún no hay comunicados.\nUsa el ícono de campaña arriba para publicar.'
+                    : 'Aún no hay comunicados.',
+              );
+            }
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: lista.length,
+              itemBuilder: (context, i) {
+                final c = lista[i];
+                final tarjeta = _TarjetaComunicado(comunicado: c);
+                final child = Padding(
+                  padding: EdgeInsets.only(bottom: i < lista.length - 1 ? 12 : 0),
+                  child: tarjeta,
+                );
+                if (!esAdmin) return child;
+
+                return Dismissible(
+                  key: ValueKey('comunicado_${c.id}'),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    margin: EdgeInsets.only(bottom: i < lista.length - 1 ? 12 : 0),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(Icons.delete_outline, color: Colors.white),
+                  ),
+                  confirmDismiss: (_) async {
+                    return await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Eliminar comunicado'),
+                        content: Text(
+                          '¿Eliminar "${c.titulo.isEmpty ? 'Sin título' : c.titulo}"?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Cancelar'),
+                          ),
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.redAccent,
+                            ),
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Eliminar'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  onDismissed: (_) async {
+                    try {
+                      await _comunicadosRepo.eliminar(c.id);
+                      _mostrarSnack('Comunicado eliminado');
+                    } catch (e) {
+                      _mostrarSnack('Error al eliminar: $e', esError: true);
+                    }
+                  },
+                  child: child,
                 );
               },
-            ),
-          ],
-        );
-      },
+            );
+          },
+        ),
+      ],
     );
   }
 

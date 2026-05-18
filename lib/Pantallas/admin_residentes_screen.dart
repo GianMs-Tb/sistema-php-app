@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../Models/alerta_sos_model.dart';
 import '../Models/residente_model.dart';
+import '../Services/firebase_alerta_sos_repository.dart';
 import '../Services/firebase_residente_repository.dart';
+import '../Widgets/banner_sos_emergencia.dart';
 import 'admin_pqrs_screen.dart';
 
 String _formatoFechaCorta(DateTime d) {
@@ -19,6 +22,7 @@ class AdminResidentesScreen extends StatefulWidget {
 
 class _AdminResidentesScreenState extends State<AdminResidentesScreen> {
   final _repo = FirebaseResidenteRepository();
+  final _alertaSosRepo = FirebaseAlertaSosRepository();
   final _searchCtrl = TextEditingController();
   String _query = '';
 
@@ -66,45 +70,67 @@ class _AdminResidentesScreenState extends State<AdminResidentesScreen> {
           ),
         ],
       ),
-      body: StreamBuilder<List<ResidenteModel>>(
-        stream: _repo.streamResidentes(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  'Error al cargar datos:\n${snapshot.error}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.redAccent),
-                ),
-              ),
-            );
-          }
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          StreamBuilder(
+            stream: _alertaSosRepo.streamActivas(),
+            builder: (context, sosSnap) {
+              final activas = sosSnap.data ?? const <AlertaSos>[];
+              return BannerSosEmergencia(
+                alertas: activas,
+                onMarcarAtendida: (id) => _marcarAlertaAtendida(id),
+              );
+            },
+          ),
+          Expanded(
+            child: StreamBuilder<List<ResidenteModel>>(
+              stream: _repo.streamResidentes(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'Error al cargar datos:\n${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.redAccent),
+                      ),
+                    ),
+                  );
+                }
 
-          final cargando = snapshot.connectionState == ConnectionState.waiting;
-          final todos = snapshot.data ?? const <ResidenteModel>[];
-          final totalActivos = todos.where((r) => r.esActivo).length;
-          final totalArchivados = todos.where((r) => r.esInactivo).length;
-          final filtradas = _filtrar(todos);
+                final cargando =
+                    snapshot.connectionState == ConnectionState.waiting;
+                final todos = snapshot.data ?? const <ResidenteModel>[];
+                final totalActivos = todos.where((r) => r.esActivo).length;
+                final totalArchivados = todos.where((r) => r.esInactivo).length;
+                final filtradas = _filtrar(todos);
 
-          return Column(
-            children: [
-              _construirEstadisticas(total: totalActivos),
-              _construirToggleArchivados(
-                totalArchivados: totalArchivados,
-                totalActivos: totalActivos,
-              ),
-              _construirBuscador(),
-              const SizedBox(height: 8),
-              Expanded(
-                child: cargando
-                    ? const Center(child: CircularProgressIndicator())
-                    : _construirListado(filtradas, totalActivos, totalArchivados),
-              ),
-            ],
-          );
-        },
+                return Column(
+                  children: [
+                    _construirEstadisticas(total: totalActivos),
+                    _construirToggleArchivados(
+                      totalArchivados: totalArchivados,
+                      totalActivos: totalActivos,
+                    ),
+                    _construirBuscador(),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: cargando
+                          ? const Center(child: CircularProgressIndicator())
+                          : _construirListado(
+                              filtradas,
+                              totalActivos,
+                              totalArchivados,
+                            ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _mostrarDialogoNuevoResidente(context),
@@ -116,6 +142,15 @@ class _AdminResidentesScreenState extends State<AdminResidentesScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _marcarAlertaAtendida(String id) async {
+    try {
+      await _alertaSosRepo.marcarAtendida(id);
+      _mostrarSnack('Alerta marcada como atendida');
+    } catch (e) {
+      _mostrarSnack('Error al actualizar alerta: $e', esError: true);
+    }
   }
 
   // ---------------------------------------------------------------------------

@@ -89,7 +89,6 @@ class PerfilScreen extends StatelessWidget {
                   const SizedBox(height: 15),
                   _construirOpcionMenu(Icons.notifications_outlined, 'Notificaciones', true),
                   _construirOpcionMenu(Icons.lock_outline, 'Seguridad y Contraseña', false),
-                  _construirOpcionMenu(Icons.credit_card, 'Métodos de Pago', false),
                   _construirOpcionMenu(Icons.help_outline, 'Soporte y Ayuda', false),
 
                   const SizedBox(height: 40),

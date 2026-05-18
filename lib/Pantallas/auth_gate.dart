@@ -1,7 +1,7 @@
 // Importa la compuerta de rol consultando Firestore (`users`).
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Importa el shell principal PH (tabs Inicio / Reservas / Pagos / Perfil).
+// Importa el shell principal PH (tabs Inicio / PQRS / Perfil).
 import 'package:flutter_application_1/Models/app_user.dart';
 import 'package:flutter_application_1/Pantallas/menu_principal_screen.dart';
 import 'package:flutter_application_1/Pantallas/portero_inicio_screen.dart';
