@@ -18,6 +18,15 @@ abstract class ZonasComunes {
   ];
 }
 
+/// Estados de aprobación de una reserva.
+abstract class ReservaEstado {
+  static const pendiente = 'Pendiente';
+  static const aprobada = 'Aprobada';
+  static const rechazada = 'Rechazada';
+
+  static const todos = [pendiente, aprobada, rechazada];
+}
+
 /// Una reserva guardada en Firestore (`reservas`).
 class Reserva {
   final String id;
@@ -29,6 +38,7 @@ class Reserva {
   final DateTime fecha;
   /// Hora de la reserva en formato 24h, ej. `16:00`.
   final String hora;
+  final String estado;
   final DateTime? createdAt;
 
   const Reserva({
@@ -40,8 +50,13 @@ class Reserva {
     required this.zona,
     required this.fecha,
     this.hora = '',
+    this.estado = ReservaEstado.pendiente,
     this.createdAt,
   });
+
+  bool get esPendiente => estado == ReservaEstado.pendiente;
+  bool get esAprobada => estado == ReservaEstado.aprobada;
+  bool get esRechazada => estado == ReservaEstado.rechazada;
 
   Map<String, dynamic> toMap() => {
         'residenteUid': residenteUid,
@@ -51,12 +66,18 @@ class Reserva {
         'zona': zona,
         'fecha': Timestamp.fromDate(_atMidnight(fecha)),
         'hora': hora,
+        'estado': estado,
         'createdAt': createdAt == null
             ? FieldValue.serverTimestamp()
             : Timestamp.fromDate(createdAt!),
       };
 
   factory Reserva.fromMap(String id, Map<String, dynamic> map) {
+    final rawEstado = (map['estado'] ?? ReservaEstado.pendiente) as String;
+    final estado = ReservaEstado.todos.contains(rawEstado)
+        ? rawEstado
+        : ReservaEstado.pendiente;
+
     return Reserva(
       id: id,
       residenteUid: (map['residenteUid'] ?? '') as String,
@@ -66,6 +87,7 @@ class Reserva {
       zona: (map['zona'] ?? '') as String,
       fecha: _readDate(map['fecha']) ?? DateTime.now(),
       hora: (map['hora'] ?? '') as String,
+      estado: estado,
       createdAt: _readDate(map['createdAt']),
     );
   }
@@ -79,6 +101,7 @@ class Reserva {
     String? zona,
     DateTime? fecha,
     String? hora,
+    String? estado,
     DateTime? createdAt,
   }) {
     return Reserva(
@@ -90,6 +113,7 @@ class Reserva {
       zona: zona ?? this.zona,
       fecha: fecha ?? this.fecha,
       hora: hora ?? this.hora,
+      estado: estado ?? this.estado,
       createdAt: createdAt ?? this.createdAt,
     );
   }

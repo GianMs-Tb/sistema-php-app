@@ -59,7 +59,11 @@ class FirebaseReservaRepository {
     await _col.doc(id).delete();
   }
 
-  /// `true` si esa zona ya está reservada en esa fecha (cualquier residente).
+  Future<void> actualizarEstado(String id, String estado) async {
+    await _col.doc(id).update({'estado': estado});
+  }
+
+  /// `true` si esa zona ya tiene una reserva **aprobada** en esa fecha.
   Future<bool> existeReservaEn({
     required DateTime fecha,
     required String zona,
@@ -70,8 +74,10 @@ class FirebaseReservaRepository {
         .where('zona', isEqualTo: zona)
         .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(inicio))
         .where('fecha', isLessThan: Timestamp.fromDate(fin))
-        .limit(1)
         .get();
-    return snap.docs.isNotEmpty;
+    return snap.docs.any((d) {
+      final estado = d.data()['estado'] as String? ?? ReservaEstado.pendiente;
+      return estado == ReservaEstado.aprobada;
+    });
   }
 }

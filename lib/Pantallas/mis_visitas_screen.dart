@@ -1,9 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../Models/visita_model.dart';
 import '../Services/firebase_visita_repository.dart';
+import '../Widgets/glass_card.dart';
+import '../Widgets/visita_qr_sheet.dart';
 import '../theme/app_theme.dart';
 
 String _formatoFechaHoraVisita(DateTime d) {
@@ -38,15 +40,17 @@ class _MisVisitasScreenState extends State<MisVisitasScreen> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final uid = user?.uid;
+    final theme = Theme.of(context);
 
     return Scaffold(
       backgroundColor: AppColors.navy,
       appBar: AppBar(title: const Text('Mis visitas')),
       body: uid == null
-          ? const Center(
+          ? Center(
               child: Text(
                 'Inicia sesión para gestionar visitas.',
                 textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium,
               ),
             )
           : StreamBuilder<List<Visita>>(
@@ -59,6 +63,7 @@ class _MisVisitasScreenState extends State<MisVisitasScreen> {
                       child: Text(
                         'Error: ${snapshot.error}',
                         textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.danger),
                       ),
                     ),
                   );
@@ -68,9 +73,10 @@ class _MisVisitasScreenState extends State<MisVisitasScreen> {
                 }
                 final lista = snapshot.data ?? const <Visita>[];
                 if (lista.isEmpty) {
-                  return _vacio();
+                  return _vacio(theme);
                 }
                 return ListView.separated(
+                  physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                   itemCount: lista.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
@@ -78,7 +84,7 @@ class _MisVisitasScreenState extends State<MisVisitasScreen> {
                     final v = lista[i];
                     return _TarjetaVisita(
                       visita: v,
-                      onTap: () => _abrirDetalle(context, v),
+                      onVerQr: () => mostrarQrVisita(context, visitaId: v.id),
                     );
                   },
                 );
@@ -88,43 +94,34 @@ class _MisVisitasScreenState extends State<MisVisitasScreen> {
           ? null
           : FloatingActionButton.extended(
               onPressed: () => _mostrarNuevaVisita(uid),
-              backgroundColor: const Color(0xFF2563EB),
-              icon: const Icon(Icons.person_add_alt_1, color: Colors.white),
-              label: const Text(
-                'Nueva visita',
-                style:
-                    TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-              ),
+              icon: const Icon(Icons.person_add_alt_1),
+              label: const Text('Nueva visita'),
             ),
     );
   }
 
-  Widget _vacio() {
+  Widget _vacio(ThemeData theme) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.groups_outlined,
-                size: 64, color: Colors.grey.withValues(alpha: 0.5)),
+            Icon(
+              Icons.groups_outlined,
+              size: 64,
+              color: AppColors.textSecondary.withValues(alpha: 0.6),
+            ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'No tienes visitas registradas',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
-              ),
+              style: theme.textTheme.titleMedium,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Crea una visita para generar un código QR que el portero puede validar al ingreso.',
-              style: TextStyle(
-                color: Colors.grey.withValues(alpha: 0.85),
-                height: 1.4,
-              ),
+              'Crea una visita y comparte el código QR con tu visitante para el ingreso en portería.',
+              style: theme.textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
           ],
@@ -135,8 +132,7 @@ class _MisVisitasScreenState extends State<MisVisitasScreen> {
 
   Future<void> _mostrarNuevaVisita(String uid) async {
     final nombreCtrl = TextEditingController();
-    DateTime fechaHora =
-        DateTime.now().add(const Duration(hours: 1));
+    DateTime fechaHora = DateTime.now().add(const Duration(hours: 1));
 
     final ok = await showDialog<bool>(
       context: context,
@@ -153,7 +149,6 @@ class _MisVisitasScreenState extends State<MisVisitasScreen> {
                     controller: nombreCtrl,
                     decoration: const InputDecoration(
                       labelText: 'Nombre del visitante',
-                      border: OutlineInputBorder(),
                     ),
                     textCapitalization: TextCapitalization.words,
                     autofocus: true,
@@ -161,12 +156,12 @@ class _MisVisitasScreenState extends State<MisVisitasScreen> {
                   const SizedBox(height: 16),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text(
+                    title: Text(
                       'Fecha y hora esperada',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                      style: Theme.of(ctx).textTheme.titleSmall,
                     ),
                     subtitle: Text(_formatoFechaHoraVisita(fechaHora)),
-                    trailing: const Icon(Icons.calendar_month),
+                    trailing: const Icon(Icons.calendar_month, color: AppColors.mint),
                     onTap: () async {
                       final ahora = DateTime.now();
                       final inicioDia =
@@ -183,8 +178,10 @@ class _MisVisitasScreenState extends State<MisVisitasScreen> {
                       if (d == null || !ctx.mounted) return;
                       final t = await showTimePicker(
                         context: ctx,
-                        initialTime:
-                            TimeOfDay(hour: fechaHora.hour, minute: fechaHora.minute),
+                        initialTime: TimeOfDay(
+                          hour: fechaHora.hour,
+                          minute: fechaHora.minute,
+                        ),
                       );
                       if (t == null || !ctx.mounted) return;
                       setLocal(() {
@@ -229,7 +226,7 @@ class _MisVisitasScreenState extends State<MisVisitasScreen> {
     }
 
     try {
-      await _repo.crear(
+      final visitaId = await _repo.crear(
         residenteUid: uid,
         residenteNombre: widget.residenteNombre,
         nombreVisitante: nombre,
@@ -238,17 +235,12 @@ class _MisVisitasScreenState extends State<MisVisitasScreen> {
         torre: widget.torre,
       );
       _snack('Visita registrada');
+      if (mounted) {
+        mostrarQrVisita(context, visitaId: visitaId);
+      }
     } catch (e) {
       _snack('No se pudo guardar: $e', error: true);
     }
-  }
-
-  void _abrirDetalle(BuildContext context, Visita visita) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => VisitaDetalleScreen(visita: visita),
-      ),
-    );
   }
 
   void _snack(String msg, {bool error = false}) {
@@ -256,98 +248,101 @@ class _MisVisitasScreenState extends State<MisVisitasScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: error ? Colors.redAccent : null,
+        backgroundColor: error ? AppColors.danger : null,
       ),
     );
   }
 }
 
 class _TarjetaVisita extends StatelessWidget {
-  const _TarjetaVisita({required this.visita, required this.onTap});
+  const _TarjetaVisita({
+    required this.visita,
+    required this.onVerQr,
+  });
 
   final Visita visita;
-  final VoidCallback onTap;
+  final VoidCallback onVerQr;
 
   @override
   Widget build(BuildContext context) {
     final pendiente = visita.esPendiente;
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    final theme = Theme.of(context);
+
+    return GlassCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      visita.nombreVisitante,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-                  ),
-                  _ChipEstado(pendiente: pendiente),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.schedule,
-                      size: 16,
-                      color: Colors.grey.withValues(alpha: 0.85)),
-                  const SizedBox(width: 6),
-                  Text(
-                    _formatoFechaHoraVisita(
-                      visita.fechaHoraEsperada ?? DateTime.now(),
-                    ),
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey.withValues(alpha: 0.9),
-                    ),
-                  ),
-                ],
-              ),
-              if (!pendiente && visita.fechaIngreso != null) ...[
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(Icons.login,
-                        size: 16,
-                        color: Colors.green.withValues(alpha: 0.85)),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Ingresó: ${_formatoFechaHoraVisita(visita.fechaIngreso!)}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.green.withValues(alpha: 0.9),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+              Expanded(
+                child: Text(
+                  visita.nombreVisitante,
+                  style: theme.textTheme.titleMedium,
                 ),
-              ],
+              ),
+              _ChipEstadoVisita(pendiente: pendiente),
             ],
           ),
-        ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(Icons.schedule, size: 16, color: AppColors.textSecondary),
+              const SizedBox(width: 6),
+              Text(
+                _formatoFechaHoraVisita(
+                  visita.fechaHoraEsperada ?? DateTime.now(),
+                ),
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ),
+          if (!pendiente && visita.fechaIngreso != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.login, size: 16, color: AppColors.mintDim),
+                const SizedBox(width: 6),
+                Text(
+                  'Ingresó: ${_formatoFechaHoraVisita(visita.fechaIngreso!)}',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppColors.mintDim,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (pendiente) ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onVerQr,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.mint,
+                  side: const BorderSide(color: AppColors.mint),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                icon: const Icon(Icons.qr_code_2),
+                label: Text(
+                  'Ver Código de Acceso',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
 }
 
-class _ChipEstado extends StatelessWidget {
-  const _ChipEstado({required this.pendiente});
+class _ChipEstadoVisita extends StatelessWidget {
+  const _ChipEstadoVisita({required this.pendiente});
 
   final bool pendiente;
 
@@ -357,161 +352,19 @@ class _ChipEstado extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: pendiente
-            ? const Color(0xFFFFEDD5)
-            : const Color(0xFFDCFCE7),
+            ? const Color(0x33FBBF24)
+            : AppColors.mint.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color:
-              pendiente ? const Color(0xFFFDBA74) : const Color(0xFF86EFAC),
+          color: pendiente ? const Color(0xFFFBBF24) : AppColors.mint,
         ),
       ),
       child: Text(
         pendiente ? VisitaEstado.pendiente : VisitaEstado.ingreso,
-        style: TextStyle(
+        style: GoogleFonts.inter(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color:
-              pendiente ? const Color(0xFFB45309) : const Color(0xFF166534),
-        ),
-      ),
-    );
-  }
-}
-
-/// Detalle: para visitas pendientes muestra el QR con el id del documento.
-class VisitaDetalleScreen extends StatelessWidget {
-  const VisitaDetalleScreen({super.key, required this.visita});
-
-  final Visita visita;
-
-  @override
-  Widget build(BuildContext context) {
-    final pendiente = visita.esPendiente;
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        title: const Text('Detalle de visita'),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1E293B),
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              visita.nombreVisitante,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0F172A),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Esperado: ${_formatoFechaHoraVisita(visita.fechaHoraEsperada ?? DateTime.now())}',
-              style: const TextStyle(color: Color(0xFF64748B)),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Destino: ${visita.unidadDestino}',
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF334155),
-              ),
-            ),
-            const SizedBox(height: 24),
-            if (pendiente) ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    const Text(
-                      'Código para portería',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'ID: ${visita.id}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    QrImageView(
-                      data: visita.id,
-                      version: QrVersions.auto,
-                      size: 220,
-                      backgroundColor: Colors.white,
-                      eyeStyle: const QrEyeStyle(
-                        eyeShape: QrEyeShape.square,
-                        color: Color(0xFF0F172A),
-                      ),
-                      dataModuleStyle: const QrDataModuleStyle(
-                        dataModuleShape: QrDataModuleShape.square,
-                        color: Color(0xFF0F172A),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ] else ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDCFCE7),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF86EFAC)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.check_circle, color: Color(0xFF166534)),
-                        SizedBox(width: 8),
-                        Text(
-                          'Visita completada',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF166534),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (visita.fechaIngreso != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'Ingresó: ${_formatoFechaHoraVisita(visita.fechaIngreso!)}',
-                        style: const TextStyle(color: Color(0xFF166534)),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ],
+          color: pendiente ? const Color(0xFFFBBF24) : AppColors.mint,
         ),
       ),
     );

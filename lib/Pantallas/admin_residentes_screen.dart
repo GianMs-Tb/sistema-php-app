@@ -8,6 +8,8 @@ import '../Widgets/banner_sos_emergencia.dart';
 import '../Widgets/glass_card.dart';
 import '../theme/app_theme.dart';
 import 'admin_pqrs_screen.dart';
+import 'admin_reservas_screen.dart';
+import 'comunicados_screen.dart';
 
 class AdminResidentesScreen extends StatefulWidget {
   const AdminResidentesScreen({super.key});
@@ -54,6 +56,22 @@ class _AdminResidentesScreenState extends State<AdminResidentesScreen> {
         title: const Text('Residentes / Apartamentos'),
         actions: [
           IconButton(
+            tooltip: 'Reservas',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AdminReservasScreen()),
+            ),
+            icon: const Icon(Icons.event_available),
+          ),
+          IconButton(
+            tooltip: 'Comunicados',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const ComunicadosScreen(isAdmin: true),
+              ),
+            ),
+            icon: const Icon(Icons.campaign_outlined),
+          ),
+          IconButton(
             tooltip: 'Gestión PQRS',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AdminPqrsScreen()),
@@ -75,6 +93,7 @@ class _AdminResidentesScreenState extends State<AdminResidentesScreen> {
               );
             },
           ),
+          _construirAccesosRapidos(context),
           Expanded(
             child: StreamBuilder<List<ResidenteModel>>(
               stream: _repo.streamResidentes(),
@@ -139,6 +158,41 @@ class _AdminResidentesScreenState extends State<AdminResidentesScreen> {
     } catch (e) {
       _mostrarSnack('Error al actualizar alerta: $e', esError: true);
     }
+  }
+
+  Widget _construirAccesosRapidos(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          ActionChip(
+            avatar: const Icon(Icons.event_available, size: 18, color: AppColors.mint),
+            label: const Text('Reservas'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AdminReservasScreen()),
+            ),
+          ),
+          ActionChip(
+            avatar: const Icon(Icons.support_agent, size: 18, color: AppColors.mint),
+            label: const Text('PQRS'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AdminPqrsScreen()),
+            ),
+          ),
+          ActionChip(
+            avatar: const Icon(Icons.campaign, size: 18, color: AppColors.mint),
+            label: const Text('Comunicados'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const ComunicadosScreen(isAdmin: true),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // ---------------------------------------------------------------------------

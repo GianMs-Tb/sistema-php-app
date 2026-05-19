@@ -8,6 +8,7 @@ import '../Models/residente.dart';
 import '../Services/firebase_paquete_repository.dart';
 import '../Widgets/glass_card.dart';
 import '../theme/app_theme.dart';
+import 'admin_reservas_screen.dart';
 import 'admin_residentes_screen.dart';
 import 'categorias_reserva_screen.dart';
 import 'comunicados_screen.dart';
@@ -101,9 +102,9 @@ class _InicioScreenState extends State<InicioScreen> {
                 // 2. Espacio perfecto entre el título y los botones
                 const SizedBox(height: 10),
 
-                _construirSeccionPaquetesPendientes(),
+                if (!esAdmin) _construirSeccionPaquetesPendientes(),
 
-                const SizedBox(height: 10),
+                if (!esAdmin) const SizedBox(height: 10),
 
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -155,7 +156,21 @@ class _InicioScreenState extends State<InicioScreen> {
                       const Color(0xFF10B981),
                       () => _abrirGenerarQR(context),
                     ),
-                    _construirCeldaPaquetes(context),
+                    if (esAdmin)
+                      _construirBotonGrid(
+                        context,
+                        Icons.event_available,
+                        'Reservas Admin',
+                        'Aprobar solicitudes',
+                        AppColors.mint,
+                        () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const AdminReservasScreen(),
+                          ),
+                        ),
+                      )
+                    else
+                      _construirCeldaPaquetes(context),
                     _construirBotonGrid(
                       context,
                       Icons.campaign,

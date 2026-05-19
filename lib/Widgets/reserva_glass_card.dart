@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../Models/reserva_model.dart';
 import '../theme/app_theme.dart';
+import 'reserva_estado_chip.dart';
 
 /// Tarjeta de reserva con estilo Premium Dark Glass.
 class ReservaGlassCard extends StatelessWidget {
@@ -67,13 +68,20 @@ class ReservaGlassCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      reserva.zona,
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            reserva.zona,
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        ReservaEstadoChip(estado: reserva.estado),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     Row(

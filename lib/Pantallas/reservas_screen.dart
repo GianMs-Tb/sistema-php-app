@@ -386,8 +386,7 @@ class _ReservasScreenState extends State<ReservasScreen> {
         ),
       );
       _mostrarMensaje(
-        'Reserva guardada: $_zonaSeleccionada el ${_formatearFechaCorta(fecha)} '
-        'a las $_horaSeleccionada.',
+        'Solicitud enviada. Tu reserva queda pendiente de aprobación.',
       );
     } catch (e) {
       _mostrarMensaje('Error al guardar: $e');
