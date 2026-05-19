@@ -1,7 +1,12 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../Models/pqrs_model.dart';
 import '../Services/firebase_pqrs_repository.dart';
+import '../Widgets/glass_card.dart';
+import '../theme/app_theme.dart';
 
 /// Vista del administrador para gestionar todas las PQRS del edificio.
 class AdminPqrsScreen extends StatefulWidget {
@@ -18,17 +23,8 @@ class _AdminPqrsScreenState extends State<AdminPqrsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        title: const Text(
-          'Gestión PQRS',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1E293B),
-        elevation: 0,
-        centerTitle: true,
-      ),
+      backgroundColor: AppColors.navy,
+      appBar: AppBar(title: const Text('Gestión PQRS')),
       body: StreamBuilder<List<Pqrs>>(
         stream: _repo.streamTodas(),
         builder: (context, snapshot) {
@@ -69,8 +65,15 @@ class _AdminPqrsScreenState extends State<AdminPqrsScreen> {
                                 'No hay solicitudes que coincidan con el filtro actual.',
                           )
                         : ListView.separated(
-                            padding:
-                                const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                            physics: const BouncingScrollPhysics(
+                              parent: AlwaysScrollableScrollPhysics(),
+                            ),
+                            padding: const EdgeInsets.fromLTRB(
+                              16,
+                              8,
+                              16,
+                              140,
+                            ),
                             itemBuilder: (_, i) => _TarjetaAdminPqrs(
                               pqrs: filtradas[i],
                               onAbrir: () => _abrirDetalle(filtradas[i]),
@@ -110,7 +113,7 @@ class _AdminPqrsScreenState extends State<AdminPqrsScreen> {
           Expanded(
             child: _StatCard(
               icono: Icons.inbox,
-              color: const Color(0xFF2563EB),
+              color: AppColors.mint,
               titulo: 'Total',
               valor: '$total',
             ),
@@ -119,7 +122,7 @@ class _AdminPqrsScreenState extends State<AdminPqrsScreen> {
           Expanded(
             child: _StatCard(
               icono: Icons.hourglass_bottom,
-              color: const Color(0xFFB45309),
+              color: const Color(0xFFFBBF24),
               titulo: 'Pendientes',
               valor: '$pendientes',
             ),
@@ -128,7 +131,7 @@ class _AdminPqrsScreenState extends State<AdminPqrsScreen> {
           Expanded(
             child: _StatCard(
               icono: Icons.check_circle,
-              color: const Color(0xFF166534),
+              color: AppColors.mintDim,
               titulo: 'Resueltas',
               valor: '$resueltas',
             ),
@@ -173,156 +176,142 @@ class _AdminPqrsScreenState extends State<AdminPqrsScreen> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (ctx) {
         final estilo = _estiloEstado(pqrs.estado);
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            12,
-            20,
-            20 + MediaQuery.of(ctx).viewInsets.bottom,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 38,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFCBD5E1),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+        final theme = Theme.of(ctx);
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.slate.withValues(alpha: 0.94),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                border: const Border(
+                  top: BorderSide(color: AppColors.glassBorder),
+                  left: BorderSide(color: AppColors.glassBorder),
+                  right: BorderSide(color: AppColors.glassBorder),
                 ),
               ),
-              const SizedBox(height: 14),
-              Row(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                12,
+                20,
+                20 + MediaQuery.of(ctx).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE0E7FF),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      pqrs.tipo,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1E3A8A),
+                  Center(
+                    child: Container(
+                      width: 38,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.textSecondary.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ),
-                  const Spacer(),
-                  _ChipEstado(estilo: estilo, label: pqrs.estado),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Descripción',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                pqrs.descripcion,
-                style: const TextStyle(
-                  color: Color(0xFF334155),
-                  fontSize: 14,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Residente',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                pqrs.residenteNombre.isEmpty
-                    ? (pqrs.residenteEmail.isEmpty
-                        ? pqrs.residenteUid
-                        : pqrs.residenteEmail)
-                    : pqrs.residenteNombre,
-                style: const TextStyle(color: Color(0xFF334155)),
-              ),
-              if (pqrs.residenteEmail.isNotEmpty &&
-                  pqrs.residenteEmail != pqrs.residenteNombre)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    pqrs.residenteEmail,
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 12.5,
-                    ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.mint.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: AppColors.mint.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Text(
+                          pqrs.tipo,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.mint,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      _ChipEstado(estilo: estilo, label: pqrs.estado),
+                    ],
                   ),
-                ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.schedule,
-                    size: 14,
-                    color: Color(0xFF64748B),
-                  ),
-                  const SizedBox(width: 4),
+                  const SizedBox(height: 16),
+                  Text('Descripción', style: theme.textTheme.titleSmall),
+                  const SizedBox(height: 6),
                   Text(
-                    'Creada: ${_formatearFecha(pqrs.createdAt)}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF64748B),
-                    ),
+                    pqrs.descripcion,
+                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
                   ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              if (pqrs.esPendiente)
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF16A34A),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                  const SizedBox(height: 16),
+                  Text('Residente', style: theme.textTheme.titleSmall),
+                  const SizedBox(height: 6),
+                  Text(
+                    pqrs.residenteNombre.isEmpty
+                        ? (pqrs.residenteEmail.isEmpty
+                            ? pqrs.residenteUid
+                            : pqrs.residenteEmail)
+                        : pqrs.residenteNombre,
+                    style: theme.textTheme.bodyLarge,
+                  ),
+                  if (pqrs.residenteEmail.isNotEmpty &&
+                      pqrs.residenteEmail != pqrs.residenteNombre)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        pqrs.residenteEmail,
+                        style: theme.textTheme.bodySmall,
                       ),
                     ),
-                    onPressed: () async {
-                      Navigator.of(ctx).pop();
-                      await _marcarResuelta(pqrs);
-                    },
-                    icon: const Icon(Icons.check),
-                    label: const Text('Marcar como Resuelta'),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.schedule,
+                        size: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Creada: ${_formatearFecha(pqrs.createdAt)}',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
                   ),
-                )
-              else
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      Navigator.of(ctx).pop();
-                      await _reabrir(pqrs);
-                    },
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Reabrir solicitud'),
-                  ),
-                ),
-            ],
+                  const SizedBox(height: 20),
+                  if (pqrs.esPendiente)
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () async {
+                          Navigator.of(ctx).pop();
+                          await _marcarResuelta(pqrs);
+                        },
+                        icon: const Icon(Icons.check),
+                        label: const Text('Marcar como Resuelta'),
+                      ),
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          Navigator.of(ctx).pop();
+                          await _reabrir(pqrs);
+                        },
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Reabrir solicitud'),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         );
       },
@@ -369,19 +358,10 @@ class _TarjetaAdminPqrs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final estilo = _estiloEstado(pqrs.estado);
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onAbrir,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-          child: Column(
+    return GlassCard(
+      onTap: onAbrir,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -392,15 +372,18 @@ class _TarjetaAdminPqrs extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE0E7FF),
+                      color: AppColors.mint.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppColors.mint.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Text(
                       pqrs.tipo,
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1E3A8A),
+                        color: AppColors.mint,
                       ),
                     ),
                   ),
@@ -413,19 +396,18 @@ class _TarjetaAdminPqrs extends StatelessWidget {
                 pqrs.descripcion,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 14,
-                  height: 1.4,
-                  color: Color(0xFF334155),
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.person_outline,
                     size: 14,
-                    color: Color(0xFF64748B),
+                    color: AppColors.textSecondary,
                   ),
                   const SizedBox(width: 4),
                   Expanded(
@@ -437,32 +419,25 @@ class _TarjetaAdminPqrs extends StatelessWidget {
                               : pqrs.residenteUid),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Icon(
+                  Icon(
                     Icons.schedule,
                     size: 14,
-                    color: Color(0xFF64748B),
+                    color: AppColors.textSecondary,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     _formatearFecha(pqrs.createdAt),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF64748B),
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),
             ],
-          ),
-        ),
       ),
     );
   }
@@ -483,19 +458,8 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassCard(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -505,22 +469,8 @@ class _StatCard extends StatelessWidget {
             child: Icon(icono, color: color, size: 18),
           ),
           const SizedBox(height: 8),
-          Text(
-            valor,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
-            ),
-          ),
-          Text(
-            titulo,
-            style: const TextStyle(
-              fontSize: 11.5,
-              color: Color(0xFF64748B),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Text(valor, style: Theme.of(context).textTheme.titleLarge),
+          Text(titulo, style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
     );
@@ -580,22 +530,18 @@ class _Vacio extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icono, size: 60, color: const Color(0xFF94A3B8)),
+            Icon(icono, size: 60, color: AppColors.textSecondary),
             const SizedBox(height: 14),
             Text(
               titulo,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
-              ),
+              style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 6),
             Text(
               subtitulo,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFF64748B), height: 1.4),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.4),
             ),
           ],
         ),
@@ -620,17 +566,17 @@ class _EstadoEstilo {
 
 _EstadoEstilo _estiloEstado(String estado) {
   if (estado == PqrsEstado.resuelto) {
-    return const _EstadoEstilo(
-      background: Color(0xFFDCFCE7),
-      foreground: Color(0xFF166534),
-      border: Color(0xFF86EFAC),
+    return _EstadoEstilo(
+      background: AppColors.mint.withValues(alpha: 0.15),
+      foreground: AppColors.mint,
+      border: AppColors.mint.withValues(alpha: 0.4),
       icono: Icons.check_circle,
     );
   }
-  return const _EstadoEstilo(
-    background: Color(0xFFFFEDD5),
-    foreground: Color(0xFFB45309),
-    border: Color(0xFFFDBA74),
+  return _EstadoEstilo(
+    background: const Color(0xFFFBBF24).withValues(alpha: 0.15),
+    foreground: const Color(0xFFFBBF24),
+    border: const Color(0xFFFBBF24).withValues(alpha: 0.4),
     icono: Icons.hourglass_bottom,
   );
 }

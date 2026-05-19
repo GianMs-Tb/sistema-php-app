@@ -27,11 +27,21 @@ class FirebasePqrsRepository {
     });
   }
 
-  /// Todas las PQRS del edificio (vista admin), ordenadas por fecha descendente.
+  /// Todas las PQRS del edificio (vista admin), sin filtrar por uid.
+  /// Orden en cliente para no exigir índice compuesto ni fallar si falta `createdAt`.
   Stream<List<Pqrs>> streamTodas() {
-    return _col.orderBy('createdAt', descending: true).snapshots().map(
-        (snap) =>
-            snap.docs.map((d) => Pqrs.fromMap(d.id, d.data())).toList());
+    return _col.snapshots().map((snap) {
+      final lista =
+          snap.docs.map((d) => Pqrs.fromMap(d.id, d.data())).toList()
+            ..sort((a, b) {
+              final aDate = a.createdAt ??
+                  DateTime.fromMillisecondsSinceEpoch(0);
+              final bDate = b.createdAt ??
+                  DateTime.fromMillisecondsSinceEpoch(0);
+              return bDate.compareTo(aDate);
+            });
+      return lista;
+    });
   }
 
   Future<String> crear(Pqrs pqrs) async {

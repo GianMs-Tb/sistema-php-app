@@ -4,8 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/Services/firebase_alerta_sos_repository.dart';
+import 'package:flutter_application_1/theme/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'admin_pqrs_screen.dart';
 import 'inicio_screen.dart';
 import 'perfil_screen.dart';
 import 'pqrs_screen.dart';
@@ -53,44 +56,51 @@ class _MenuNavegacionPrincipalState extends State<MenuNavegacionPrincipal>
   Widget build(BuildContext context) {
     final pantallas = <Widget>[
       InicioScreen(isAdmin: widget.isAdmin),
-      const PqrsScreen(),
+      widget.isAdmin ? const AdminPqrsScreen() : const PqrsScreen(),
       const PerfilScreen(),
     ];
 
     return Scaffold(
       extendBody: true,
       body: pantallas[_indiceSeleccionado],
-      floatingActionButton: ScaleTransition(
-        scale: _animacionLatido,
-        child: FloatingActionButton(
-          onPressed: () => _mostrarOpcionesSos(context),
-          backgroundColor: const Color(0xFFB91C1C),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-          elevation: 4,
-          child: const Icon(Icons.sos, color: Colors.white, size: 28),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: BottomAppBar(
-            shape: const CircularNotchedRectangle(),
-            notchMargin: 8.0,
-            color: Colors.white70,
-            elevation: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _construirIconoNav(Icons.home, 'Inicio', 0),
-                _construirIconoNav(Icons.support_agent, 'PQRS', 1),
-                const SizedBox(width: 48),
-                _construirIconoNav(Icons.person, 'Perfil', 2),
-              ],
+      floatingActionButton: _indiceSeleccionado == 1
+          ? null
+          : ScaleTransition(
+              scale: _animacionLatido,
+              child: FloatingActionButton(
+                onPressed: () => _mostrarOpcionesSos(context),
+                backgroundColor: AppColors.danger,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                elevation: 4,
+                child: const Icon(Icons.sos, size: 28),
+              ),
             ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        currentIndex: _indiceSeleccionado,
+        onTap: (i) => setState(() => _indiceSeleccionado = i),
+        showUnselectedLabels: true,
+        items: [
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Inicio',
           ),
-        ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.support_agent_outlined),
+            activeIcon: Icon(Icons.support_agent),
+            label: 'PQRS',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Perfil',
+          ),
+        ],
       ),
     );
   }
@@ -98,89 +108,104 @@ class _MenuNavegacionPrincipalState extends State<MenuNavegacionPrincipal>
   Future<void> _mostrarOpcionesSos(BuildContext context) async {
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFCBD5E1),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.slate.withValues(alpha: 0.95),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                border: const Border(
+                  top: BorderSide(color: AppColors.glassBorder),
+                  left: BorderSide(color: AppColors.glassBorder),
+                  right: BorderSide(color: AppColors.glassBorder),
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Emergencia',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Elige una acción. En caso de peligro inmediato, llama a emergencias.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF64748B), height: 1.4),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                height: 54,
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFDC2626),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.textSecondary.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                  onPressed: () async {
-                    Navigator.pop(ctx);
-                    await _llamarEmergencias(context);
-                  },
-                  icon: const Icon(Icons.phone_in_talk),
-                  label: const Text(
-                    'Llamar a Emergencias (123)',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 54,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFB91C1C),
-                    side: const BorderSide(color: Color(0xFFB91C1C), width: 1.5),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  onPressed: () async {
-                    Navigator.pop(ctx);
-                    await _enviarAlertaPorteria(context);
-                  },
-                  icon: const Icon(Icons.notifications_active_outlined),
-                  label: const Text(
-                    'Enviar alerta a Portería y Administración',
+                  const SizedBox(height: 16),
+                  Text(
+                    'Emergencia',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Elige una acción. En caso de peligro inmediato, llama a emergencias.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      color: AppColors.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 54,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.danger,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        await _llamarEmergencias(context);
+                      },
+                      icon: const Icon(Icons.phone_in_talk),
+                      label: Text(
+                        'Llamar a Emergencias (123)',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 54,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.danger,
+                        side: const BorderSide(color: AppColors.danger, width: 1.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        await _enviarAlertaPorteria(context);
+                      },
+                      icon: const Icon(Icons.notifications_active_outlined),
+                      label: Text(
+                        'Enviar alerta a Portería y Administración',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },
@@ -257,7 +282,7 @@ class _MenuNavegacionPrincipalState extends State<MenuNavegacionPrincipal>
             content: Text(
               'Alerta enviada a portería y administración.',
             ),
-            backgroundColor: Color(0xFF16A34A),
+            backgroundColor: AppColors.mintDim,
           ),
         );
       }
@@ -273,31 +298,4 @@ class _MenuNavegacionPrincipalState extends State<MenuNavegacionPrincipal>
     }
   }
 
-  Widget _construirIconoNav(IconData icono, String etiqueta, int indice) {
-    final seleccionado = _indiceSeleccionado == indice;
-    return InkWell(
-      onTap: () => setState(() => _indiceSeleccionado = indice),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icono,
-              color: seleccionado ? const Color(0xFF2563EB) : Colors.grey,
-              size: 26,
-            ),
-            Text(
-              etiqueta,
-              style: TextStyle(
-                fontSize: 10,
-                color: seleccionado ? const Color(0xFF2563EB) : Colors.grey,
-                fontWeight: seleccionado ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

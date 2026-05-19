@@ -8,6 +8,7 @@ import '../Services/firebase_alerta_sos_repository.dart';
 import '../Services/firebase_paquete_repository.dart';
 import '../Services/firebase_visita_repository.dart';
 import '../Widgets/banner_sos_emergencia.dart';
+import '../theme/app_theme.dart';
 
 /// Pantalla exclusiva del rol `portero`: visitas, paquetería y alertas SOS.
 class PorteroInicioScreen extends StatefulWidget {
@@ -28,15 +29,9 @@ class _PorteroInicioScreenState extends State<PorteroInicioScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
+      backgroundColor: AppColors.navy,
       appBar: AppBar(
-        title: Text(
-          _pestana == 0 ? 'Visitas' : 'Paquetería',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: const Color(0xFF0F172A),
-        foregroundColor: Colors.white,
-        elevation: 0,
+        title: Text(_pestana == 0 ? 'Visitas' : 'Paquetería'),
         actions: [
           IconButton(
             tooltip: 'Cerrar sesión',

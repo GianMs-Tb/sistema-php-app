@@ -9,6 +9,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../Widgets/glass_card.dart';
+import '../theme/app_theme.dart';
+
 /// Genera un QR con los datos del residente y permite descargarlo o compartirlo.
 class GenerarQRScreen extends StatefulWidget {
   const GenerarQRScreen({
@@ -48,17 +51,10 @@ class _GenerarQRScreenState extends State<GenerarQRScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Pase de Visita',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1E293B),
-        elevation: 0,
-        centerTitle: true,
-      ),
+      backgroundColor: AppColors.navy,
+      appBar: AppBar(title: const Text('Pase de Visita')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -68,45 +64,30 @@ class _GenerarQRScreenState extends State<GenerarQRScreen> {
               const SizedBox(height: 12),
               Text(
                 widget.nombre.isEmpty ? 'Residente' : widget.nombre,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                ),
+                style: theme.textTheme.headlineSmall,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 4),
               Text(
                 _detalleUnidad(),
-                style: TextStyle(color: Colors.grey.shade600),
+                style: theme.textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               Center(
-                child: Container(
+                child: GlassCard(
                   padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
                   child: QrImageView(
                     data: _qrData,
                     version: QrVersions.auto,
                     size: _qrPreviewSize,
                     eyeStyle: const QrEyeStyle(
                       eyeShape: QrEyeShape.square,
-                      color: Color(0xFF1E3A8A),
+                      color: AppColors.mint,
                     ),
                     dataModuleStyle: const QrDataModuleStyle(
                       dataModuleShape: QrDataModuleShape.square,
-                      color: Color(0xFF1E293B),
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ),
@@ -115,7 +96,7 @@ class _GenerarQRScreenState extends State<GenerarQRScreen> {
               Text(
                 'Muestra este código en portería.\nLos datos viajan firmados con tu UID.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                style: theme.textTheme.bodySmall,
               ),
               const Spacer(),
               Row(

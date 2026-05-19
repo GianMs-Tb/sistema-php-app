@@ -27,6 +27,8 @@ class Reserva {
   final String torre;
   final String zona;
   final DateTime fecha;
+  /// Hora de la reserva en formato 24h, ej. `16:00`.
+  final String hora;
   final DateTime? createdAt;
 
   const Reserva({
@@ -37,6 +39,7 @@ class Reserva {
     required this.torre,
     required this.zona,
     required this.fecha,
+    this.hora = '',
     this.createdAt,
   });
 
@@ -47,6 +50,7 @@ class Reserva {
         'torre': torre,
         'zona': zona,
         'fecha': Timestamp.fromDate(_atMidnight(fecha)),
+        'hora': hora,
         'createdAt': createdAt == null
             ? FieldValue.serverTimestamp()
             : Timestamp.fromDate(createdAt!),
@@ -61,6 +65,7 @@ class Reserva {
       torre: (map['torre'] ?? '') as String,
       zona: (map['zona'] ?? '') as String,
       fecha: _readDate(map['fecha']) ?? DateTime.now(),
+      hora: (map['hora'] ?? '') as String,
       createdAt: _readDate(map['createdAt']),
     );
   }
@@ -73,6 +78,7 @@ class Reserva {
     String? torre,
     String? zona,
     DateTime? fecha,
+    String? hora,
     DateTime? createdAt,
   }) {
     return Reserva(
@@ -83,6 +89,7 @@ class Reserva {
       torre: torre ?? this.torre,
       zona: zona ?? this.zona,
       fecha: fecha ?? this.fecha,
+      hora: hora ?? this.hora,
       createdAt: createdAt ?? this.createdAt,
     );
   }

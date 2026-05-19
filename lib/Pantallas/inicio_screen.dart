@@ -3,13 +3,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../Models/app_user.dart';
-import '../Models/comunicado_model.dart';
 import '../Models/paquete_model.dart';
 import '../Models/residente.dart';
-import '../Services/firebase_comunicado_repository.dart';
 import '../Services/firebase_paquete_repository.dart';
+import '../Widgets/glass_card.dart';
+import '../theme/app_theme.dart';
 import 'admin_residentes_screen.dart';
 import 'categorias_reserva_screen.dart';
+import 'comunicados_screen.dart';
 import 'generar_qr_screen.dart';
 import 'mis_visitas_screen.dart';
 
@@ -35,7 +36,6 @@ class _InicioScreenState extends State<InicioScreen> {
     notificacionesSinLeer: 2,
   );
 
-  final _comunicadosRepo = FirebaseComunicadoRepository();
   final _paquetesRepo = FirebasePaqueteRepository();
 
   /// Future cacheado para evitar parpadeo en cada rebuild.
@@ -65,23 +65,11 @@ class _InicioScreenState extends State<InicioScreen> {
       builder: (context, adminSnap) {
         final esAdmin = adminSnap.data ?? false;
         return Scaffold(
-          backgroundColor: const Color(0xFFF5F7FA),
+          backgroundColor: AppColors.navy,
           appBar: esAdmin
               ? AppBar(
-                  title: const Text(
-                    'Inicio',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF1E293B),
-                  elevation: 0,
-                  centerTitle: true,
+                  title: const Text('Inicio'),
                   actions: [
-                    IconButton(
-                      tooltip: 'Nuevo comunicado',
-                      onPressed: () => _mostrarDialogoNuevoComunicado(context),
-                      icon: const Icon(Icons.campaign_outlined),
-                    ),
                     IconButton(
                       tooltip: 'Panel de administración',
                       onPressed: () => _abrirAdmin(context),
@@ -100,14 +88,13 @@ class _InicioScreenState extends State<InicioScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                const Center(
+                Center(
                   child: Text(
                     'Gestión Digital',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
-                    ),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: AppColors.mint,
+                          letterSpacing: 0.5,
+                        ),
                   ),
                 ),
 
@@ -175,14 +162,10 @@ class _InicioScreenState extends State<InicioScreen> {
                       'Comunicados',
                       'Últimas noticias',
                       const Color(0xFF8B5CF6),
-                      null,
+                      () => _abrirComunicados(context, esAdmin),
                     ),
                   ],
                 ),
-
-                // 3. Separación ideal entre los botones y la sección de comunicados
-                const SizedBox(height: 32),
-                _construirSeccionComunicados(esAdmin: esAdmin),
 
                 const SizedBox(height: 90),
                     ],
@@ -559,263 +542,54 @@ class _InicioScreenState extends State<InicioScreen> {
     Color color,
     VoidCallback? accion,
   ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: accion ??
-              () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('$titulo próximamente...'),
-                    duration: const Duration(seconds: 1),
-                  ),
-                );
-              },
-          child: Padding(
-            padding: const EdgeInsets.all(15.0),
-                child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icono, color: color, size: 28),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  titulo,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitulo,
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Feed de comunicados (`comunicados`). Residente: solo lectura. Admin: deslizar para eliminar.
-  Widget _construirSeccionComunicados({required bool esAdmin}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Comunicados',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1E293B),
-          ),
-        ),
-        if (esAdmin)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              'Desliza un comunicado hacia la izquierda para eliminarlo.',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.withValues(alpha: 0.9),
+    return GlassCard(
+      borderRadius: 20,
+      padding: const EdgeInsets.all(15),
+      onTap: accion ??
+          () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('$titulo próximamente...'),
+                duration: const Duration(seconds: 1),
               ),
-            ),
-          ),
-        const SizedBox(height: 12),
-        StreamBuilder<List<Comunicado>>(
-          stream: _comunicadosRepo.stream(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return const _MensajeFeed(
-                icono: Icons.error_outline,
-                texto: 'Error al cargar comunicados.',
-              );
-            }
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            final lista = snapshot.data ?? const <Comunicado>[];
-            if (lista.isEmpty) {
-              return _MensajeFeed(
-                icono: Icons.campaign_outlined,
-                texto: esAdmin
-                    ? 'Aún no hay comunicados.\nUsa el ícono de campaña arriba para publicar.'
-                    : 'Aún no hay comunicados.',
-              );
-            }
-            return ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: lista.length,
-              itemBuilder: (context, i) {
-                final c = lista[i];
-                final tarjeta = _TarjetaComunicado(comunicado: c);
-                final child = Padding(
-                  padding: EdgeInsets.only(bottom: i < lista.length - 1 ? 12 : 0),
-                  child: tarjeta,
-                );
-                if (!esAdmin) return child;
-
-                return Dismissible(
-                  key: ValueKey('comunicado_${c.id}'),
-                  direction: DismissDirection.endToStart,
-                  background: Container(
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 20),
-                    margin: EdgeInsets.only(bottom: i < lista.length - 1 ? 12 : 0),
-                    decoration: BoxDecoration(
-                      color: Colors.redAccent,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Icon(Icons.delete_outline, color: Colors.white),
-                  ),
-                  confirmDismiss: (_) async {
-                    return await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Eliminar comunicado'),
-                        content: Text(
-                          '¿Eliminar "${c.titulo.isEmpty ? 'Sin título' : c.titulo}"?',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('Cancelar'),
-                          ),
-                          FilledButton(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.redAccent,
-                            ),
-                            onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text('Eliminar'),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                  onDismissed: (_) async {
-                    try {
-                      await _comunicadosRepo.eliminar(c.id);
-                      _mostrarSnack('Comunicado eliminado');
-                    } catch (e) {
-                      _mostrarSnack('Error al eliminar: $e', esError: true);
-                    }
-                  },
-                  child: child,
-                );
-              },
             );
           },
-        ),
-      ],
-    );
-  }
-
-  Future<void> _mostrarDialogoNuevoComunicado(BuildContext context) async {
-    final tituloCtrl = TextEditingController();
-    final descCtrl = TextEditingController();
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Nuevo comunicado'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: tituloCtrl,
-                decoration: const InputDecoration(labelText: 'Título'),
-                textCapitalization: TextCapitalization.sentences,
-                autofocus: true,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: descCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción',
-                  alignLabelWithHint: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: color.withValues(alpha: 0.35)),
+            ),
+            child: Icon(icono, color: color, size: 28),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            titulo,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
                 ),
-                textCapitalization: TextCapitalization.sentences,
-                minLines: 3,
-                maxLines: 6,
-              ),
-            ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Publicar'),
+          const SizedBox(height: 2),
+          Text(
+            subtitulo,
+            style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
       ),
     );
-
-    if (ok == true) {
-      final titulo = tituloCtrl.text.trim();
-      final desc = descCtrl.text.trim();
-      if (titulo.isEmpty || desc.isEmpty) {
-        _mostrarSnack('Título y descripción son obligatorios.', esError: true);
-      } else {
-        final user = FirebaseAuth.instance.currentUser;
-        final autor = (user?.displayName?.trim().isNotEmpty == true)
-            ? user!.displayName!
-            : (user?.email ?? 'Administración');
-        try {
-          await _comunicadosRepo.crear(
-            Comunicado(
-              id: '',
-              titulo: titulo,
-              descripcion: desc,
-              autor: autor,
-              autorUid: user?.uid ?? '',
-            ),
-          );
-          _mostrarSnack('Comunicado publicado');
-        } catch (e) {
-          _mostrarSnack('Error al publicar: $e', esError: true);
-        }
-      }
-    }
-
-    tituloCtrl.dispose();
-    descCtrl.dispose();
   }
 
-  void _mostrarSnack(String texto, {bool esError = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(texto),
-        backgroundColor: esError ? Colors.redAccent : null,
+  void _abrirComunicados(BuildContext context, bool esAdmin) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ComunicadosScreen(isAdmin: esAdmin),
       ),
     );
   }
@@ -904,151 +678,6 @@ class _BotonAdminHeader extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-/// Tarjeta tipo "feed" para un comunicado.
-class _TarjetaComunicado extends StatelessWidget {
-  const _TarjetaComunicado({required this.comunicado});
-
-  final Comunicado comunicado;
-
-  @override
-  Widget build(BuildContext context) {
-    final fechaTxt = _formatearFecha(comunicado.createdAt);
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: const Border(
-          left: BorderSide(color: Color(0xFF3B82F6), width: 5),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const CircleAvatar(
-                radius: 18,
-                backgroundColor: Color(0xFFE0E7FF),
-                child: Icon(Icons.campaign, color: Color(0xFF3B82F6)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  comunicado.titulo.isEmpty
-                      ? 'Sin título'
-                      : comunicado.titulo,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            comunicado.descripcion,
-            style: const TextStyle(
-              fontSize: 13.5,
-              height: 1.4,
-              color: Color(0xFF334155),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(
-                Icons.person_outline,
-                size: 14,
-                color: Color(0xFF64748B),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  comunicado.autor.isEmpty
-                      ? 'Administración'
-                      : comunicado.autor,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF64748B),
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.schedule,
-                size: 14,
-                color: Color(0xFF64748B),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                fechaTxt,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF64748B),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  static String _formatearFecha(DateTime? fecha) {
-    if (fecha == null) return '—';
-    final dd = fecha.day.toString().padLeft(2, '0');
-    final mm = fecha.month.toString().padLeft(2, '0');
-    final hh = fecha.hour.toString().padLeft(2, '0');
-    final min = fecha.minute.toString().padLeft(2, '0');
-    return '$dd/$mm/${fecha.year} $hh:$min';
-  }
-}
-
-/// Estado vacío / error compacto del feed.
-class _MensajeFeed extends StatelessWidget {
-  const _MensajeFeed({required this.icono, required this.texto});
-
-  final IconData icono;
-  final String texto;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        children: [
-          Icon(icono, size: 36, color: const Color(0xFF94A3B8)),
-          const SizedBox(height: 8),
-          Text(
-            texto,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
-          ),
-        ],
-      ),
     );
   }
 }

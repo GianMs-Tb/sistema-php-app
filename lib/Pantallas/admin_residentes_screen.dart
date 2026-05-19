@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../Models/alerta_sos_model.dart';
 import '../Models/residente_model.dart';
 import '../Services/firebase_alerta_sos_repository.dart';
 import '../Services/firebase_residente_repository.dart';
 import '../Widgets/banner_sos_emergencia.dart';
+import '../Widgets/glass_card.dart';
+import '../theme/app_theme.dart';
 import 'admin_pqrs_screen.dart';
-
-String _formatoFechaCorta(DateTime d) {
-  return '${d.day.toString().padLeft(2, '0')}/'
-      '${d.month.toString().padLeft(2, '0')}/${d.year}';
-}
 
 class AdminResidentesScreen extends StatefulWidget {
   const AdminResidentesScreen({super.key});
@@ -53,13 +49,9 @@ class _AdminResidentesScreenState extends State<AdminResidentesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.navy,
       appBar: AppBar(
         title: const Text('Residentes / Apartamentos'),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1E293B),
-        elevation: 0,
-        centerTitle: true,
         actions: [
           IconButton(
             tooltip: 'Gestión PQRS',
@@ -134,12 +126,8 @@ class _AdminResidentesScreenState extends State<AdminResidentesScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _mostrarDialogoNuevoResidente(context),
-        backgroundColor: const Color(0xFF2563EB),
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
-          'Nuevo',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-        ),
+        icon: const Icon(Icons.add),
+        label: const Text('Nuevo'),
       ),
     );
   }
@@ -167,7 +155,7 @@ class _AdminResidentesScreenState extends State<AdminResidentesScreen> {
               icono: Icons.people,
               titulo: 'Total Residentes',
               valor: '$total',
-              color: const Color(0xFF2563EB),
+              color: AppColors.mint,
             ),
           ),
           const SizedBox(width: 12),
@@ -176,7 +164,7 @@ class _AdminResidentesScreenState extends State<AdminResidentesScreen> {
               icono: Icons.check_circle,
               titulo: 'Zonas Activas',
               valor: '4',
-              color: Color(0xFF10B981),
+              color: AppColors.mintDim,
             ),
           ),
         ],
@@ -235,51 +223,23 @@ class _AdminResidentesScreenState extends State<AdminResidentesScreen> {
   Widget _construirBuscador() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: TextField(
+      child: TextField(
           controller: _searchCtrl,
           onChanged: (value) => setState(() => _query = value),
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
             hintText: 'Buscar por nombre, apartamento o torre',
-            hintStyle: TextStyle(color: Colors.grey.shade500),
-            prefixIcon: const Icon(Icons.search, color: Color(0xFF2563EB)),
+            prefixIcon: const Icon(Icons.search, color: AppColors.mint),
             suffixIcon: _query.isEmpty
                 ? null
                 : IconButton(
-                    icon: const Icon(Icons.close, color: Colors.grey),
+                    icon: const Icon(Icons.close, color: AppColors.textSecondary),
                     onPressed: () {
                       _searchCtrl.clear();
                       setState(() => _query = '');
                     },
                   ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
           ),
-        ),
       ),
     );
   }
@@ -313,6 +273,7 @@ class _AdminResidentesScreenState extends State<AdminResidentesScreen> {
     }
 
     return ListView.builder(
+      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
       itemCount: filtradas.length,
       itemBuilder: (context, index) {
@@ -320,7 +281,6 @@ class _AdminResidentesScreenState extends State<AdminResidentesScreen> {
         return _TarjetaResidente(
           residente: r,
           mostrarComoArchivado: _verArchivados,
-          onEditarSaldo: () => _mostrarDialogoSaldo(context, r),
           onEditarDatos: () => _mostrarDialogoEditar(context, r),
           onInactivar: () => _confirmarInactivar(context, r),
           onReactivar: () => _confirmarReactivar(context, r),
@@ -489,56 +449,6 @@ class _AdminResidentesScreenState extends State<AdminResidentesScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Diálogo de saldo (mantenido)
-  // ---------------------------------------------------------------------------
-
-  Future<void> _mostrarDialogoSaldo(
-      BuildContext context, ResidenteModel r) async {
-    final ctrl = TextEditingController(text: r.saldoPendiente.toString());
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Saldo — ${r.nombre}'),
-        content: TextField(
-          controller: ctrl,
-          decoration: const InputDecoration(
-            labelText: 'Saldo pendiente',
-            prefixText: '\$ ',
-          ),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          autofocus: true,
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
-    );
-
-    if (ok == true) {
-      final saldo =
-          double.tryParse(ctrl.text.replaceAll(',', '.')) ?? r.saldoPendiente;
-      try {
-        await _repo.actualizar(r.copyWith(saldoPendiente: saldo));
-        _mostrarSnack('Saldo actualizado');
-      } catch (e) {
-        _mostrarSnack('Error al actualizar saldo: $e', esError: true);
-      }
-    }
-    ctrl.dispose();
-  }
-
-  // ---------------------------------------------------------------------------
   // Inactivar / reactivar (soft delete)
   // ---------------------------------------------------------------------------
 
@@ -658,19 +568,8 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassCard(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
       child: Row(
         children: [
           Container(
@@ -690,20 +589,12 @@ class _StatCard extends StatelessWidget {
                   titulo,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 2),
                 Text(
                   valor,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF0F172A),
-                  ),
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
               ],
             ),
@@ -718,7 +609,6 @@ class _TarjetaResidente extends StatelessWidget {
   const _TarjetaResidente({
     required this.residente,
     required this.mostrarComoArchivado,
-    required this.onEditarSaldo,
     required this.onEditarDatos,
     required this.onInactivar,
     required this.onReactivar,
@@ -726,7 +616,6 @@ class _TarjetaResidente extends StatelessWidget {
 
   final ResidenteModel residente;
   final bool mostrarComoArchivado;
-  final VoidCallback onEditarSaldo;
   final VoidCallback onEditarDatos;
   final VoidCallback onInactivar;
   final VoidCallback onReactivar;
@@ -734,32 +623,13 @@ class _TarjetaResidente extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final saldoTxt = residente.saldoPendiente
-        .toStringAsFixed(0)
-        .replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (m) => '${m[1]}.',
-        );
-
     final archivado = residente.esInactivo;
 
     return Opacity(
       opacity: archivado ? 0.85 : 1.0,
-      child: Card(
+      child: GlassCard(
         margin: const EdgeInsets.only(bottom: 12),
-        elevation: 0,
-        color: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: archivado
-                ? const Color(0xFFEA580C).withValues(alpha: 0.35)
-                : Colors.grey.withValues(alpha: 0.2),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
+        child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -773,16 +643,12 @@ class _TarjetaResidente extends StatelessWidget {
                           residente.nombre,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: const Color(0xFF1E293B),
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           _detalleUbicacion(),
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 14,
-                          ),
+                          style: theme.textTheme.bodyMedium,
                         ),
                       ],
                     ),
@@ -790,10 +656,15 @@ class _TarjetaResidente extends StatelessWidget {
                   if (archivado)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEA580C).withValues(alpha: 0.12),
+                        color: const Color(0xFFEA580C).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFFEA580C).withValues(alpha: 0.4),
+                        ),
                       ),
                       child: const Text(
                         'Archivado',
@@ -801,65 +672,20 @@ class _TarjetaResidente extends StatelessWidget {
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: Color(0xFFEA580C),
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-                    )
-                  else if (residente.notificacionesSinLeer > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2563EB).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${residente.notificacionesSinLeer} avisos',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF2563EB),
                         ),
                       ),
                     ),
                 ],
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(Icons.account_balance_wallet_outlined,
-                      size: 18, color: Colors.grey.shade700),
-                  const SizedBox(width: 6),
-                  Text(
-                    '\$ $saldoTxt',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                      color: Color(0xFF0F172A),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Icon(Icons.event_outlined,
-                      size: 18, color: Colors.grey.shade700),
-                  const SizedBox(width: 6),
-                  Text(
-                    residente.fechaVencimiento == null
-                        ? '—'
-                        : _formatoFechaCorta(residente.fechaVencimiento!),
-                    style: TextStyle(color: Colors.grey.shade700),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              _construirAcciones(),
+              _construirAcciones(context),
             ],
-          ),
         ),
       ),
     );
   }
 
-  Widget _construirAcciones() {
+  Widget _construirAcciones(BuildContext context) {
     if (mostrarComoArchivado) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.end,
@@ -868,9 +694,6 @@ class _TarjetaResidente extends StatelessWidget {
             onPressed: onReactivar,
             icon: const Icon(Icons.unarchive_outlined, size: 18),
             label: const Text('Reactivar'),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF10B981),
-            ),
           ),
         ],
       );
@@ -882,21 +705,14 @@ class _TarjetaResidente extends StatelessWidget {
         IconButton(
           tooltip: 'Editar datos',
           icon: const Icon(Icons.edit_outlined, size: 20),
-          color: const Color(0xFF2563EB),
+          color: AppColors.mint,
           onPressed: onEditarDatos,
-        ),
-        TextButton.icon(
-          onPressed: onEditarSaldo,
-          icon: const Icon(Icons.attach_money_rounded, size: 18),
-          label: const Text('Saldo'),
         ),
         TextButton.icon(
           onPressed: onInactivar,
           icon: const Icon(Icons.archive_outlined, size: 18),
           label: const Text('Inactivar'),
-          style: TextButton.styleFrom(
-            foregroundColor: const Color(0xFFEA580C),
-          ),
+          style: TextButton.styleFrom(foregroundColor: AppColors.danger),
         ),
       ],
     );

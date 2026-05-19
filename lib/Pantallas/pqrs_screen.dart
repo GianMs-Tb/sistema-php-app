@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 
 import '../Models/pqrs_model.dart';
 import '../Services/firebase_pqrs_repository.dart';
+import '../Widgets/glass_card.dart';
+import '../theme/app_theme.dart';
 
-/// Buzón de PQRS del residente. Lista sus solicitudes y permite crear
-/// nuevas (`tipo` + `descripcion`) que se guardan en Firestore con
-/// estado `Pendiente`.
+/// Buzón de PQRS del residente.
 class PqrsScreen extends StatefulWidget {
   const PqrsScreen({super.key});
 
@@ -23,69 +23,69 @@ class _PqrsScreenState extends State<PqrsScreen> {
     final uid = user?.uid;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        title: const Text(
-          'Mis solicitudes',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1E293B),
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: uid == null
-            ? const _Vacio(
-                icono: Icons.lock_outline,
-                titulo: 'Sesión no detectada',
-                subtitulo: 'Inicia sesión para enviar y consultar tus PQRS.',
-              )
-            : StreamBuilder<List<Pqrs>>(
-                stream: _repo.streamDeResidente(uid),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return const _Vacio(
-                      icono: Icons.error_outline,
-                      titulo: 'Error al cargar',
-                      subtitulo:
-                          'No pudimos obtener tus solicitudes. Intenta de nuevo.',
-                    );
-                  }
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  final lista = snapshot.data ?? const <Pqrs>[];
-                  if (lista.isEmpty) {
-                    return _Vacio(
-                      icono: Icons.inbox_outlined,
-                      titulo: 'Aún no tienes solicitudes',
-                      subtitulo:
-                          'Pulsa "Nueva solicitud" para enviar una petición, queja, reclamo o sugerencia.',
-                      onNuevaSolicitud: () => _abrirNuevaSolicitud(uid),
-                    );
-                  }
-                  return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
-                    itemBuilder: (_, i) => _TarjetaPqrs(pqrs: lista[i]),
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemCount: lista.length,
+      backgroundColor: AppColors.navy,
+      appBar: AppBar(title: const Text('Mis solicitudes')),
+      body: uid == null
+          ? const _Vacio(
+              icono: Icons.lock_outline,
+              titulo: 'Sesión no detectada',
+              subtitulo: 'Inicia sesión para enviar y consultar tus PQRS.',
+            )
+          : StreamBuilder<List<Pqrs>>(
+              stream: _repo.streamDeResidente(uid),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return const _Vacio(
+                    icono: Icons.error_outline,
+                    titulo: 'Error al cargar',
+                    subtitulo:
+                        'No pudimos obtener tus solicitudes. Intenta de nuevo.',
                   );
-                },
-              ),
-      ),
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final lista = snapshot.data ?? const <Pqrs>[];
+
+                return CustomScrollView(
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
+                  slivers: [
+                    if (lista.isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: _Vacio(
+                          icono: Icons.inbox_outlined,
+                          titulo: 'Aún no tienes solicitudes',
+                          subtitulo:
+                              'Pulsa "Nueva solicitud" para enviar una petición, queja, reclamo o sugerencia.',
+                          onNuevaSolicitud: () => _abrirNuevaSolicitud(uid),
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
+                        sliver: SliverList.separated(
+                          itemCount: lista.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (_, i) =>
+                              _TarjetaPqrs(pqrs: lista[i]),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
       floatingActionButton: uid == null
           ? null
-          : FloatingActionButton.extended(
-              onPressed: () => _abrirNuevaSolicitud(uid),
-              backgroundColor: const Color(0xFF2563EB),
-              icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text(
-                'Nueva solicitud',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
+          : Padding(
+              padding: const EdgeInsets.only(bottom: 100),
+              child: FloatingActionButton.extended(
+                onPressed: () => _abrirNuevaSolicitud(uid),
+                icon: const Icon(Icons.add),
+                label: const Text('Nueva solicitud'),
               ),
             ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
@@ -110,7 +110,7 @@ class _PqrsScreenState extends State<PqrsScreen> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF334155),
+                  color: AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 6),
@@ -120,13 +120,6 @@ class _PqrsScreenState extends State<PqrsScreen> {
                   return DropdownButtonFormField<String>(
                     value: tipo,
                     isExpanded: true,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                    ),
                     items: PqrsTipo.todos
                         .map((t) => DropdownMenuItem(
                               value: t,
@@ -148,7 +141,6 @@ class _PqrsScreenState extends State<PqrsScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Descripción',
                   alignLabelWithHint: true,
-                  border: OutlineInputBorder(),
                 ),
               ),
             ],
@@ -204,7 +196,7 @@ class _PqrsScreenState extends State<PqrsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(texto),
-        backgroundColor: esError ? Colors.redAccent : null,
+        backgroundColor: esError ? AppColors.danger : null,
       ),
     );
   }
@@ -218,19 +210,8 @@ class _TarjetaPqrs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final estilo = _estiloEstado(pqrs.estado);
-    final fechaTxt = _formatearFecha(pqrs.createdAt);
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    final fechaTxt = _formatoFecha(pqrs.createdAt);
+    return GlassCard(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -243,15 +224,18 @@ class _TarjetaPqrs extends StatelessWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE0E7FF),
+                  color: AppColors.mint.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppColors.mint.withValues(alpha: 0.35),
+                  ),
                 ),
                 child: Text(
                   pqrs.tipo,
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E3A8A),
+                    color: AppColors.mint,
                   ),
                 ),
               ),
@@ -262,27 +246,19 @@ class _TarjetaPqrs extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             pqrs.descripcion,
-            style: const TextStyle(
-              fontSize: 14,
-              height: 1.4,
-              color: Color(0xFF334155),
-            ),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textPrimary,
+                  height: 1.4,
+                ),
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(
-                Icons.schedule,
-                size: 14,
-                color: Color(0xFF64748B),
-              ),
+              const Icon(Icons.schedule, size: 14, color: AppColors.textSecondary),
               const SizedBox(width: 4),
               Text(
                 fechaTxt,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF64748B),
-                ),
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),
@@ -343,26 +319,22 @@ class _Vacio extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
+        padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icono, size: 60, color: const Color(0xFF94A3B8)),
+            Icon(icono, size: 60, color: AppColors.textSecondary),
             const SizedBox(height: 14),
             Text(
               titulo,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
-              ),
+              style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 6),
             Text(
               subtitulo,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFF64748B), height: 1.4),
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
             if (onNuevaSolicitud != null) ...[
               const SizedBox(height: 20),
@@ -395,22 +367,22 @@ class _EstadoEstilo {
 
 _EstadoEstilo _estiloEstado(String estado) {
   if (estado == PqrsEstado.resuelto) {
-    return const _EstadoEstilo(
-      background: Color(0xFFDCFCE7),
-      foreground: Color(0xFF166534),
-      border: Color(0xFF86EFAC),
+    return _EstadoEstilo(
+      background: AppColors.mint.withValues(alpha: 0.15),
+      foreground: AppColors.mint,
+      border: AppColors.mint.withValues(alpha: 0.4),
       icono: Icons.check_circle,
     );
   }
   return const _EstadoEstilo(
-    background: Color(0xFFFFEDD5),
-    foreground: Color(0xFFB45309),
-    border: Color(0xFFFDBA74),
+    background: Color(0x33F59E0B),
+    foreground: Color(0xFFFBBF24),
+    border: Color(0x66F59E0B),
     icono: Icons.hourglass_bottom,
   );
 }
 
-String _formatearFecha(DateTime? fecha) {
+String _formatoFecha(DateTime? fecha) {
   if (fecha == null) return '—';
   final dd = fecha.day.toString().padLeft(2, '0');
   final mm = fecha.month.toString().padLeft(2, '0');

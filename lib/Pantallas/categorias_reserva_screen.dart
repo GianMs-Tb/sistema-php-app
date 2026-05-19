@@ -1,12 +1,15 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../Models/reserva_model.dart';
 import '../Services/firebase_reserva_repository.dart';
+import '../Widgets/glass_card.dart';
+import '../Widgets/reserva_glass_card.dart';
+import '../theme/app_theme.dart';
 import 'reservas_screen.dart';
 
-/// Pantalla intermedia con un grid de categorías y la lista de reservas
-/// futuras del residente.
+/// Grid de zonas y lista de reservas futuras con estilo Premium Dark Glass.
 class CategoriasReservaScreen extends StatelessWidget {
   const CategoriasReservaScreen({
     super.key,
@@ -21,44 +24,27 @@ class CategoriasReservaScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Reservar',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1E293B),
-        elevation: 0,
-        centerTitle: true,
-      ),
+      backgroundColor: AppColors.navy,
+      appBar: AppBar(title: const Text('Reservar')),
       body: SafeArea(
         child: ListView(
+          physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
           children: [
-            const Text(
-              'Selecciona una zona',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
-              ),
-            ),
+            Text('Selecciona una zona', style: theme.textTheme.titleLarge),
             const SizedBox(height: 4),
             Text(
               'Toca una tarjeta para abrir el calendario.',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+              style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
             _construirGridCategorias(context),
             const SizedBox(height: 28),
-            const Text(
+            Text(
               'Mis Reservas Programadas',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
-              ),
+              style: theme.textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
             _construirListaFuturas(context),
@@ -74,25 +60,21 @@ class CategoriasReservaScreen extends StatelessWidget {
         zona: ZonasComunes.piscina,
         subtitulo: 'Sol y aguas tranquilas',
         icono: Icons.pool,
-        gradiente: [Color(0xFF3B82F6), Color(0xFF06B6D4)],
       ),
       const _CategoriaZona(
         zona: ZonasComunes.salonSocial,
         subtitulo: 'Eventos y celebraciones',
         icono: Icons.celebration,
-        gradiente: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
       ),
       const _CategoriaZona(
         zona: ZonasComunes.cancha,
         subtitulo: 'Deportes y actividades',
         icono: Icons.sports_soccer,
-        gradiente: [Color(0xFF10B981), Color(0xFF22C55E)],
       ),
       const _CategoriaZona(
         zona: ZonasComunes.cine,
         subtitulo: 'Sala con proyector',
         icono: Icons.movie,
-        gradiente: [Color(0xFF1E3A8A), Color(0xFF6366F1)],
       ),
     ];
 
@@ -141,10 +123,15 @@ class CategoriasReservaScreen extends StatelessWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: lista.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
           itemBuilder: (context, index) {
-            final r = lista[index];
-            return _TarjetaReservaProgramada(reserva: r);
+            return ReservaGlassCard(
+              reserva: lista[index],
+              trailing: const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textSecondary,
+              ),
+            );
           },
         );
       },
@@ -152,21 +139,15 @@ class CategoriasReservaScreen extends StatelessWidget {
   }
 
   Widget _vacio(String texto) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
-      ),
+    return GlassCard(
       child: Row(
         children: [
-          const Icon(Icons.event_busy, color: Colors.grey),
+          const Icon(Icons.event_busy, color: AppColors.textSecondary),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               texto,
-              style: TextStyle(color: Colors.grey.shade700),
+              style: GoogleFonts.inter(color: AppColors.textSecondary),
             ),
           ),
         ],
@@ -193,13 +174,11 @@ class _CategoriaZona {
     required this.zona,
     required this.subtitulo,
     required this.icono,
-    required this.gradiente,
   });
 
   final String zona;
   final String subtitulo;
   final IconData icono;
-  final List<Color> gradiente;
 }
 
 class _TarjetaCategoria extends StatelessWidget {
@@ -210,124 +189,41 @@ class _TarjetaCategoria extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: categoria.gradiente,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+    return GlassCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(16),
+      fillColor: AppColors.slate.withValues(alpha: 0.55),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.mint.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.mint.withValues(alpha: 0.35)),
             ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: categoria.gradiente.last.withValues(alpha: 0.25),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
+            child: Icon(categoria.icono, color: AppColors.mint, size: 26),
           ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(categoria.icono, color: Colors.white, size: 26),
-              ),
-              const Spacer(),
-              Text(
-                categoria.zona,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                categoria.subtitulo,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.85),
-                  fontSize: 12,
-                ),
-              ),
-            ],
+          const Spacer(),
+          Text(
+            categoria.zona,
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
+          const SizedBox(height: 4),
+          Text(
+            categoria.subtitulo,
+            style: GoogleFonts.inter(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+            ),
+          ),
+        ],
       ),
     );
-  }
-}
-
-class _TarjetaReservaProgramada extends StatelessWidget {
-  const _TarjetaReservaProgramada({required this.reserva});
-
-  final Reserva reserva;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
-      ),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: const Color(0xFFE0E7FF),
-          child: Icon(_iconoZona(reserva.zona), color: const Color(0xFF1E3A8A)),
-        ),
-        title: Text(
-          reserva.zona,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text(_formatearFecha(reserva.fecha)),
-        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-      ),
-    );
-  }
-
-  IconData _iconoZona(String zona) {
-    switch (zona) {
-      case ZonasComunes.piscina:
-        return Icons.pool;
-      case ZonasComunes.salonSocial:
-        return Icons.celebration;
-      case ZonasComunes.cancha:
-        return Icons.sports_soccer;
-      case ZonasComunes.cine:
-        return Icons.movie;
-      case ZonasComunes.bbq:
-        return Icons.outdoor_grill;
-      default:
-        return Icons.event;
-    }
-  }
-
-  String _formatearFecha(DateTime d) {
-    const meses = [
-      'enero',
-      'febrero',
-      'marzo',
-      'abril',
-      'mayo',
-      'junio',
-      'julio',
-      'agosto',
-      'septiembre',
-      'octubre',
-      'noviembre',
-      'diciembre'
-    ];
-    return '${d.day} de ${meses[d.month - 1]} ${d.year}';
   }
 }

@@ -4,6 +4,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../Models/visita_model.dart';
 import '../Services/firebase_visita_repository.dart';
+import '../theme/app_theme.dart';
 
 String _formatoFechaHoraVisita(DateTime d) {
   final dd = d.day.toString().padLeft(2, '0');
@@ -39,17 +40,8 @@ class _MisVisitasScreenState extends State<MisVisitasScreen> {
     final uid = user?.uid;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        title: const Text(
-          'Mis visitas',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1E293B),
-        elevation: 0,
-        centerTitle: true,
-      ),
+      backgroundColor: AppColors.navy,
+      appBar: AppBar(title: const Text('Mis visitas')),
       body: uid == null
           ? const Center(
               child: Text(

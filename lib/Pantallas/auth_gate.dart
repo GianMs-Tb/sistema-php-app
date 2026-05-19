@@ -17,6 +17,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 // Importa Material para construir pantallas y widgets.
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/theme/app_theme.dart';
 
 /// Tras el login, escucha `users/{uid}` y pasa [isAdmin] al menú principal.
 class AuthGate extends StatelessWidget {
@@ -97,7 +98,7 @@ class _FirestoreRoleGateState extends State<FirestoreRoleGate> {
   }
 }
 
-// Pantalla contenedora del formulario de autenticacion.
+/// Pantalla de autenticación premium con fondo degradado animado.
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
@@ -105,30 +106,109 @@ class AuthScreen extends StatefulWidget {
   State<AuthScreen> createState() => _AuthScreenState();
 }
 
-// Estado privado de AuthScreen.
-class _AuthScreenState extends State<AuthScreen> {
+class _AuthScreenState extends State<AuthScreen>
+    with SingleTickerProviderStateMixin {
   bool _isLogin = true;
+  late final AnimationController _gradientCtrl;
 
-  void _toggleMode() {
-    setState(() => _isLogin = !_isLogin);
+  @override
+  void initState() {
+    super.initState();
+    _gradientCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    )..repeat(reverse: true);
   }
+
+  @override
+  void dispose() {
+    _gradientCtrl.dispose();
+    super.dispose();
+  }
+
+  void _toggleMode() => setState(() => _isLogin = !_isLogin);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: AuthCard(
-                isLogin: _isLogin,
-                onToggleMode: _toggleMode,
+      body: AnimatedBuilder(
+        animation: _gradientCtrl,
+        builder: (context, _) {
+          final t = _gradientCtrl.value;
+          return Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment(-1 + t * 0.4, -1),
+                end: Alignment(1 - t * 0.3, 1),
+                colors: [
+                  const Color(0xFF0A192F),
+                  Color.lerp(
+                    const Color(0xFF112240),
+                    const Color(0xFF1A365D),
+                    t,
+                  )!,
+                  const Color(0xFF0A192F),
+                ],
               ),
             ),
-          ),
-        ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Silueta de edificio (overlay decorativo)
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.15),
+                          Colors.black.withValues(alpha: 0.55),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: -40,
+                  top: 80,
+                  child: Icon(
+                    Icons.domain,
+                    size: 280,
+                    color: AppColors.mint.withValues(alpha: 0.06),
+                  ),
+                ),
+                Positioned(
+                  left: -30,
+                  bottom: 60,
+                  child: Icon(
+                    Icons.apartment,
+                    size: 200,
+                    color: Colors.white.withValues(alpha: 0.04),
+                  ),
+                ),
+                SafeArea(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 32,
+                      ),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 440),
+                        child: AuthCard(
+                          isLogin: _isLogin,
+                          onToggleMode: _toggleMode,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
