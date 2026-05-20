@@ -77,6 +77,7 @@ class AuthService {
               uid: u.uid,
               email: email.trim(),
               role: UserRoles.residente,
+              nombre: cleanName,
             ).toMap(),
           );
     }
@@ -90,11 +91,13 @@ class AuthService {
     final ref = _users.doc(user.uid);
     final snap = await ref.get();
     if (snap.exists) return;
+    final nombre = user.displayName?.trim() ?? '';
     await ref.set(
       AppUser(
         uid: user.uid,
         email: user.email ?? '',
         role: UserRoles.residente,
+        nombre: nombre,
       ).toMap(),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../Models/alerta_sos_model.dart';
 import '../Models/paquete_model.dart';
@@ -61,6 +62,14 @@ class _PorteroInicioScreenState extends State<PorteroInicioScreen> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _llamarEmergencias,
+        tooltip: 'Emergencias',
+        backgroundColor: AppColors.danger,
+        foregroundColor: Colors.white,
+        child: const Icon(Icons.local_phone),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _pestana,
         onDestinationSelected: (i) => setState(() => _pestana = i),
@@ -78,6 +87,30 @@ class _PorteroInicioScreenState extends State<PorteroInicioScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _llamarEmergencias() async {
+    final uri = Uri(scheme: 'tel', path: '123');
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo abrir el marcador telefónico.'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al llamar: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _marcarAlertaAtendida(String id) async {

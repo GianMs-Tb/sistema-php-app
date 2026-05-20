@@ -1,11 +1,11 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../Models/app_user.dart';
 import '../Models/paquete_model.dart';
-import '../Models/residente.dart';
 import '../Services/firebase_paquete_repository.dart';
+import '../Services/firebase_user_repository.dart';
+import '../utils/greeting.dart';
 import '../Widgets/glass_card.dart';
 import '../theme/app_theme.dart';
 import 'admin_reservas_screen.dart';
@@ -27,44 +27,30 @@ class InicioScreen extends StatefulWidget {
 }
 
 class _InicioScreenState extends State<InicioScreen> {
-  // Dato temporal: reemplazar por Provider/Bloc cuando conectemos Firebase.
-  static final Residente _residente = Residente(
-    nombre: 'Santiago',
-    apartamento: 'Apto 502',
-    torre: 'Torre 1',
-    saldoPendiente: 150000,
-    fechaVencimiento: DateTime(2026, 4, 15),
-    notificacionesSinLeer: 2,
-  );
-
   final _paquetesRepo = FirebasePaqueteRepository();
-
-  /// Future cacheado para evitar parpadeo en cada rebuild.
-  late final Future<bool> _esAdminFuture = _cargarRolAdmin();
-
-  Future<bool> _cargarRolAdmin() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return false;
-    try {
-      final snap = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      if (!snap.exists) return false;
-      final appUser = AppUser.fromMap(user.uid, snap.data() ?? {});
-      return appUser.isAdmin;
-    } catch (_) {
-      return false;
-    }
-  }
+  final _userRepo = FirebaseUserRepository();
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: _esAdminFuture,
-      initialData: widget.isAdmin,
-      builder: (context, adminSnap) {
-        final esAdmin = adminSnap.data ?? false;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      return const Scaffold(
+        backgroundColor: AppColors.navy,
+        body: Center(child: Text('Inicia sesión para continuar.')),
+      );
+    }
+
+    return StreamBuilder<AppUser>(
+      stream: _userRepo.streamUsuario(uid),
+      builder: (context, userSnap) {
+        final appUser = userSnap.data ??
+            AppUser(
+              uid: uid,
+              email: FirebaseAuth.instance.currentUser?.email ?? '',
+              role: widget.isAdmin ? UserRoles.admin : UserRoles.residente,
+            );
+        final esAdmin = appUser.isAdmin;
+
         return Scaffold(
           backgroundColor: AppColors.navy,
           appBar: esAdmin
@@ -82,7 +68,11 @@ class _InicioScreenState extends State<InicioScreen> {
           body: SingleChildScrollView(
             child: Column(
               children: [
-                _construirHeader(context, mostrarBotonAdminEnHeader: !esAdmin),
+                _construirHeader(
+                  context,
+                  appUser: appUser,
+                  mostrarBotonAdminEnHeader: !esAdmin,
+                ),
                 const SizedBox(height: 24),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -120,7 +110,7 @@ class _InicioScreenState extends State<InicioScreen> {
                             'Reservas',
                             'Zonas comunes',
                             const Color(0xFF3B82F6),
-                            () => _abrirReservas(context),
+                            () => _abrirReservas(context, appUser),
                           ),
                         ),
                         SizedBox(width: gap),
@@ -132,7 +122,7 @@ class _InicioScreenState extends State<InicioScreen> {
                             'Mis visitas',
                             'Invitados y QR',
                             const Color(0xFF0EA5E9),
-                            () => _abrirMisVisitas(context),
+                            () => _abrirMisVisitas(context, appUser),
                           ),
                         ),
                       ],
@@ -154,7 +144,7 @@ class _InicioScreenState extends State<InicioScreen> {
                       'Pase Visitas',
                       'Generar QR',
                       const Color(0xFF10B981),
-                      () => _abrirGenerarQR(context),
+                      () => _abrirGenerarQR(context, appUser),
                     ),
                     if (esAdmin)
                       _construirBotonGrid(
@@ -405,6 +395,7 @@ class _InicioScreenState extends State<InicioScreen> {
   /// Header degradado moderno con saludo y botón admin opcional.
   Widget _construirHeader(
     BuildContext context, {
+    required AppUser appUser,
     bool mostrarBotonAdminEnHeader = true,
   }) {
     return ClipRRect(
@@ -469,7 +460,7 @@ class _InicioScreenState extends State<InicioScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _saludoSegunHora(),
+                              saludoSegunHora(),
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.7),
                                 fontSize: 13,
@@ -479,7 +470,7 @@ class _InicioScreenState extends State<InicioScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Hola, ${_residente.nombre}!',
+                              'Hola, ${appUser.nombreParaMostrar}!',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 30,
@@ -491,48 +482,46 @@ class _InicioScreenState extends State<InicioScreen> {
                           ],
                         ),
                       ),
-                      if (mostrarBotonAdminEnHeader)
-                        _BotonAdminHeader(
-                          future: _esAdminFuture,
-                          initialIsAdmin: widget.isAdmin,
-                          onTap: () => _abrirAdmin(context),
-                        ),
+                      if (mostrarBotonAdminEnHeader && appUser.isAdmin)
+                        _BotonAdminHeader(onTap: () => _abrirAdmin(context)),
                     ],
                   ),
-                  const SizedBox(height: 18),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(40),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.18),
+                  if (appUser.mostrarBadgeUnidad) ...[
+                    const SizedBox(height: 18),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(40),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.18),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.apartment_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            appUser.unidadCompleta,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.apartment_rounded,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _residente.unidadCompleta,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -540,13 +529,6 @@ class _InicioScreenState extends State<InicioScreen> {
         ],
       ),
     );
-  }
-
-  String _saludoSegunHora() {
-    final hora = DateTime.now().hour;
-    if (hora < 12) return 'BUENOS DÍAS';
-    if (hora < 19) return 'BUENAS TARDES';
-    return 'BUENAS NOCHES';
   }
 
   Widget _construirBotonGrid(
@@ -615,37 +597,37 @@ class _InicioScreenState extends State<InicioScreen> {
     );
   }
 
-  void _abrirReservas(BuildContext context) {
+  void _abrirReservas(BuildContext context, AppUser appUser) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => CategoriasReservaScreen(
-          nombre: _residente.nombre,
-          apartamento: _residente.apartamento,
-          torre: _residente.torre,
+          nombre: appUser.nombreParaMostrar,
+          apartamento: appUser.apartamento,
+          torre: appUser.torre,
         ),
       ),
     );
   }
 
-  void _abrirGenerarQR(BuildContext context) {
+  void _abrirGenerarQR(BuildContext context, AppUser appUser) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => GenerarQRScreen(
-          nombre: _residente.nombre,
-          apartamento: _residente.apartamento,
-          torre: _residente.torre,
+          nombre: appUser.nombreParaMostrar,
+          apartamento: appUser.apartamento,
+          torre: appUser.torre,
         ),
       ),
     );
   }
 
-  void _abrirMisVisitas(BuildContext context) {
+  void _abrirMisVisitas(BuildContext context, AppUser appUser) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => MisVisitasScreen(
-          residenteNombre: _residente.nombre,
-          apartamento: _residente.apartamento,
-          torre: _residente.torre,
+          residenteNombre: appUser.nombreParaMostrar,
+          apartamento: appUser.apartamento,
+          torre: appUser.torre,
         ),
       ),
     );
@@ -656,43 +638,28 @@ class _InicioScreenState extends State<InicioScreen> {
 /// confirma que el rol del usuario es `admin`. En cualquier otro caso devuelve
 /// `SizedBox.shrink()` sin parpadeo.
 class _BotonAdminHeader extends StatelessWidget {
-  const _BotonAdminHeader({
-    required this.future,
-    required this.initialIsAdmin,
-    required this.onTap,
-  });
+  const _BotonAdminHeader({required this.onTap});
 
-  final Future<bool> future;
-  final bool initialIsAdmin;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: future,
-      initialData: initialIsAdmin,
-      builder: (context, snapshot) {
-        final esAdmin = snapshot.data ?? false;
-        if (!esAdmin) return const SizedBox.shrink();
-
-        return Material(
-          color: Colors.white.withValues(alpha: 0.18),
-          borderRadius: BorderRadius.circular(14),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: onTap,
-            child: const Padding(
-              padding: EdgeInsets.all(10),
-              child: Icon(
-                Icons.settings,
-                color: Colors.white,
-                size: 26,
-                semanticLabel: 'Panel de administración',
-              ),
-            ),
+    return Material(
+      color: Colors.white.withValues(alpha: 0.18),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: const Padding(
+          padding: EdgeInsets.all(10),
+          child: Icon(
+            Icons.settings,
+            color: Colors.white,
+            size: 26,
+            semanticLabel: 'Panel de administración',
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
